@@ -73,7 +73,10 @@ on the LMS so the MFE host may call `/edl-panel/api/v1/`.
 
 ## Caveats
 
-This scaffold has **not been `npm install`ed / built in CI yet**. Dependency
-majors (`frontend-platform`, `paragon`, `frontend-build`) are pinned to a recent
-Open edX release; **align them with your target release** before the first
-build. Run `npm install && npm start` to validate.
+Dependencies are aligned to the **Ulmo** release (`release/ulmo.3`, verified
+against `frontend-app-gradebook`), and the app **builds** (`npm run build`) and
+**tests** pass locally on Node 18. Note `frontend-platform` is `@edx/…` while
+`paragon`/`frontend-build`/`brand-openedx` are `@openedx/…`. Paragon 23 ships
+compiled CSS (no scss partials), so theme CSS is imported in `index.jsx`. The
+`tutor-mfe` image builds MFEs on Node 24. If you target a different Open edX
+release, re-align deps from that release's MFE `package.json`.

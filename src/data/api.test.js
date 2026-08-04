@@ -1,9 +1,9 @@
 import { apiBaseUrl } from './api';
 
-jest.mock('@openedx/frontend-platform', () => ({
+jest.mock('@edx/frontend-platform', () => ({
   getConfig: () => ({ LMS_BASE_URL: 'http://lms.test' }),
 }));
-jest.mock('@openedx/frontend-platform/auth', () => ({
+jest.mock('@edx/frontend-platform/auth', () => ({
   getAuthenticatedHttpClient: () => ({ get: jest.fn() }),
 }));
 

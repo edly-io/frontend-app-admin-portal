@@ -1,5 +1,5 @@
-import { getConfig } from '@openedx/frontend-platform';
-import { getAuthenticatedHttpClient } from '@openedx/frontend-platform/auth';
+import { getConfig } from '@edx/frontend-platform';
+import { getAuthenticatedHttpClient } from '@edx/frontend-platform/auth';
 
 /** Base URL of the edl-panel REST API (served by the LMS plugin). */
 export const apiBaseUrl = () => `${getConfig().LMS_BASE_URL}/edl-panel/api/v1`;

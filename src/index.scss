@@ -1,6 +1,2 @@
-// Open edX design system: Paragon core with @edx/brand overrides, so the
-// panel matches the platform's other MFEs.
-@import "@edx/brand/paragon/fonts";
-@import "@edx/brand/paragon/variables";
-@import "@openedx/paragon/scss/core/core";
-@import "@edx/brand/paragon/overrides";
+// App-specific styles. Paragon + theme CSS are imported in index.jsx
+// (Ulmo paragon 23 ships compiled CSS, not SCSS partials).

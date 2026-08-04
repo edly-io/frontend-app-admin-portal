@@ -1,7 +1,7 @@
 import React from 'react';
 import { Routes, Route } from 'react-router-dom';
-import { getConfig } from '@openedx/frontend-platform';
-import { AppContext } from '@openedx/frontend-platform/react';
+import { getConfig } from '@edx/frontend-platform';
+import { AppContext } from '@edx/frontend-platform/react';
 import {
   Navbar, Container, Dropdown,
 } from '@openedx/paragon';
