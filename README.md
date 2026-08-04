@@ -1,0 +1,79 @@
+# frontend-app-edl-panel
+
+Admin **MFE for EDL Panel** — user and course enrollment management on Open edX.
+It is a standard Open edX micro-frontend built on
+[`@openedx/frontend-platform`](https://github.com/openedx/frontend-platform) and
+styled with the [Paragon](https://github.com/openedx/paragon) design system, so
+it looks and behaves like the platform's other MFEs. It consumes the
+`edl-panel` LMS plugin's REST API (`/edl-panel/api/v1/`).
+
+> **Status:** EDL-11 scaffold — app bootstrap, auth, routing, Paragon/brand
+> styling, and a working Users screen (search + status filter, backed by the
+> plugin's list API). Create / enroll / deactivate / role-management screens
+> land in EDL-12+.
+
+## Does it run on the same server as the other Open edX MFEs?
+
+**Yes.** This is a conventional MFE, so Tutor's
+[`tutor-mfe`](https://github.com/overhangio/tutor-mfe) plugin builds it into the
+**same MFE Docker image** and serves it from the **same MFE container/webserver**
+as `learning`, `authoring`, `account`, etc. — path-routed on the MFE host
+(e.g. `…/edl-panel`). It shares their JWT auth and Paragon styling and calls the
+`edl-panel` REST API on the LMS host.
+
+The LMS plugin also owns `https://<lms>/edl-panel/` (a Django landing route). Two
+clean ways to make that path show this MFE: (a) the landing view 302-redirects
+to the MFE URL (recommended), or (b) a proxy rule maps it to the MFE. Decide when
+wiring Tutor.
+
+## Styling
+
+Uses `@openedx/paragon` + `@edx/brand` (aliased to `@openedx/brand-openedx`) —
+the same tokens, typography and components as every other MFE. The header chrome
+here is built from Paragon primitives; the shared
+`@edx/frontend-component-header`/`-footer` can be dropped in later without
+touching page code.
+
+## Local development
+
+```bash
+npm install
+npm start          # serves on http://localhost:8080 (PUBLIC_PATH=/edl-panel/)
+```
+
+Point `LMS_BASE_URL` in `.env.development` at your LMS. You must be logged into
+the LMS as a member of the `edl_admin` group (or a superuser) — the app requires
+authentication and the API enforces the EDL-admin gate.
+
+```bash
+npm test           # jest
+npm run lint       # eslint
+npm run build      # production bundle -> dist/
+```
+
+## Registering with Tutor (tutor-mfe)
+
+Add it to the MFE app list via a small Tutor plugin (e.g. `edl_panel_mfe.py`):
+
+```python
+from tutormfe.hooks import MFE_APPS
+
+@MFE_APPS.add()
+def _add_edl_panel_mfe(apps):
+    apps["edl-panel"] = {
+        "repository": "https://github.com/edl/frontend-app-edl-panel.git",
+        "port": 8080,
+    }
+    return apps
+```
+
+Then `tutor plugins enable edl_panel_mfe`, rebuild the MFE image
+(`tutor images build mfe`), and restart. Configure the CORS/CSRF trusted origins
+on the LMS so the MFE host may call `/edl-panel/api/v1/`.
+
+## Caveats
+
+This scaffold has **not been `npm install`ed / built in CI yet**. Dependency
+majors (`frontend-platform`, `paragon`, `frontend-build`) are pinned to a recent
+Open edX release; **align them with your target release** before the first
+build. Run `npm install && npm start` to validate.

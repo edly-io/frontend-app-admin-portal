@@ -1,0 +1,41 @@
+{
+  "name": "@edl/frontend-app-edl-panel",
+  "version": "0.1.0",
+  "description": "EDL Panel — admin MFE for user and course enrollment management (Open edX).",
+  "license": "AGPL-3.0",
+  "private": true,
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/edl/frontend-app-edl-panel.git"
+  },
+  "scripts": {
+    "build": "fedx-scripts webpack",
+    "i18n_extract": "fedx-scripts formatjs extract",
+    "lint": "fedx-scripts eslint --ext .js --ext .jsx .",
+    "snapshot": "fedx-scripts jest --updateSnapshot",
+    "start": "fedx-scripts webpack-dev-server --progress",
+    "test": "fedx-scripts jest --coverage --passWithNoTests"
+  },
+  "dependencies": {
+    "@edx/brand": "npm:@openedx/brand-openedx@^2.2.0",
+    "@openedx/frontend-platform": "^8.1.0",
+    "@openedx/paragon": "^22.8.0",
+    "classnames": "^2.5.1",
+    "core-js": "^3.37.0",
+    "prop-types": "^15.8.1",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-redux": "^9.1.2",
+    "react-router": "^6.24.0",
+    "react-router-dom": "^6.24.0",
+    "redux": "^5.0.1",
+    "regenerator-runtime": "^0.14.1"
+  },
+  "devDependencies": {
+    "@openedx/frontend-build": "^14.1.0",
+    "@testing-library/jest-dom": "^6.4.6",
+    "@testing-library/react": "^15.0.7",
+    "axios-mock-adapter": "^1.22.0",
+    "glob": "^10.4.1"
+  }
+}
