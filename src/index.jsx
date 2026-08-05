@@ -11,9 +11,19 @@ import React from 'react';
 import App from './App';
 import messages from './i18n';
 
-// Paragon + brand theme CSS is loaded at runtime by frontend-platform from
-// PARAGON_THEME_URLS (indigo sets the edly brand globally), the same as every
-// other Open edX MFE — so we do NOT import paragon CSS directly here.
+// Bundle the brand theme from the app's OWN origin. Indigo swaps @edx/brand to
+// the edly brand-openedx fork at build time, so this is the edly theme in the
+// tutor image (and the default brand when built standalone). Bundling avoids
+// the CORB block the browser applies to indigo's cross-origin
+// PARAGON_THEME_URLS on raw.githubusercontent.com.
+// Bundle the full theme same-origin so it isn't subject to CORB on indigo's
+// cross-origin PARAGON_THEME_URLS (raw.githubusercontent.com):
+//   - paragon core = structural/component CSS (theme-agnostic)
+//   - brand light  = the light-variant tokens; @edx/brand is swapped to the
+//     edly fork at build time, so this is the edly brand in the tutor image.
+// (@edx/brand exports map "./*" -> "./dist/*", hence no "dist/" prefix.)
+import '@openedx/paragon/dist/core.css';
+import '@edx/brand/light.css';
 import './index.scss';
 
 const render = (children) => {
