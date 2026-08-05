@@ -16,14 +16,8 @@ import messages from './i18n';
 // tutor image (and the default brand when built standalone). Bundling avoids
 // the CORB block the browser applies to indigo's cross-origin
 // PARAGON_THEME_URLS on raw.githubusercontent.com.
-// Bundle the full theme same-origin so it isn't subject to CORB on indigo's
-// cross-origin PARAGON_THEME_URLS (raw.githubusercontent.com):
-//   - paragon core = structural/component CSS (theme-agnostic)
-//   - brand light  = the light-variant tokens; @edx/brand is swapped to the
-//     edly fork at build time, so this is the edly brand in the tutor image.
-// (@edx/brand exports map "./*" -> "./dist/*", hence no "dist/" prefix.)
 import '@openedx/paragon/dist/core.css';
-import '@edx/brand/light.css';
+import '@openedx/paragon/dist/light.css';
 import './index.scss';
 
 const render = (children) => {
