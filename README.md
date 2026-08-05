@@ -7,10 +7,12 @@ styled with the [Paragon](https://github.com/openedx/paragon) design system, so
 it looks and behaves like the platform's other MFEs. It consumes the
 `edl-panel` LMS plugin's REST API (`/edl-panel/api/v1/`).
 
-> **Status:** EDL-11 scaffold — app bootstrap, auth, routing, Paragon/brand
-> styling, and a working Users screen (search + status filter, backed by the
-> plugin's list API). Create / enroll / deactivate / role-management screens
-> land in EDL-12+.
+> **Status:** Feature-complete (EDL-11→18). Screens: Users (search / status
+> filter / paginate + deactivate-reactivate), Create user (inline validation +
+> set-password-link/copy result), Enrollment (enroll/unenroll one-or-many with
+> email toggle + per-identifier results), Staff & roles (grant/revoke
+> course-scoped roles). A 403 access-denied shell gates non-admins. Lint,
+> build and tests pass.
 
 ## Does it run on the same server as the other Open edX MFEs?
 
