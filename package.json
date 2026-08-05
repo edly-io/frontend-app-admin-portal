@@ -1,12 +1,12 @@
 {
-  "name": "@edl/frontend-app-edl-panel",
+  "name": "@edl/frontend-app-admin-portal",
   "version": "0.1.0",
   "description": "EDL Panel — admin MFE for user and course enrollment management (Open edX).",
   "license": "AGPL-3.0",
   "private": true,
   "repository": {
     "type": "git",
-    "url": "https://github.com/edl/frontend-app-edl-panel.git"
+    "url": "https://github.com/edl/frontend-app-admin-portal.git"
   },
   "scripts": {
     "build": "fedx-scripts webpack",

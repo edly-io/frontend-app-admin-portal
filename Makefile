@@ -8,7 +8,7 @@
 # strings are externalized later, replace this with the standard atlas pull.
 pull_translations:
 	@mkdir -p src/i18n/messages
-	@echo "edl-panel: no external translations to pull; skipping atlas."
+	@echo "admin-portal: no external translations to pull; skipping atlas."
 
 requirements:
 	npm ci

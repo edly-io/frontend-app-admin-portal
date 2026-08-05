@@ -7,8 +7,8 @@ jest.mock('@edx/frontend-platform/auth', () => ({
   getAuthenticatedHttpClient: () => ({ get: jest.fn() }),
 }));
 
-describe('edl-panel api client', () => {
+describe('admin-portal api client', () => {
   it('composes the API base URL from LMS_BASE_URL', () => {
-    expect(apiBaseUrl()).toBe('http://lms.test/edl-panel/api/v1');
+    expect(apiBaseUrl()).toBe('http://lms.test/admin-portal/api/v1');
   });
 });

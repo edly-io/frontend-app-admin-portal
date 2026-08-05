@@ -1,11 +1,11 @@
-# frontend-app-edl-panel
+# frontend-app-admin-portal
 
 Admin **MFE for EDL Panel** — user and course enrollment management on Open edX.
 It is a standard Open edX micro-frontend built on
 [`@openedx/frontend-platform`](https://github.com/openedx/frontend-platform) and
 styled with the [Paragon](https://github.com/openedx/paragon) design system, so
 it looks and behaves like the platform's other MFEs. It consumes the
-`edl-panel` LMS plugin's REST API (`/edl-panel/api/v1/`).
+`admin-portal` LMS plugin's REST API (`/admin-portal/api/v1/`).
 
 > **Status:** Feature-complete (EDL-11→18). Screens: Users (search / status
 > filter / paginate + deactivate-reactivate), Create user (inline validation +
@@ -20,10 +20,10 @@ it looks and behaves like the platform's other MFEs. It consumes the
 [`tutor-mfe`](https://github.com/overhangio/tutor-mfe) plugin builds it into the
 **same MFE Docker image** and serves it from the **same MFE container/webserver**
 as `learning`, `authoring`, `account`, etc. — path-routed on the MFE host
-(e.g. `…/edl-panel`). It shares their JWT auth and Paragon styling and calls the
-`edl-panel` REST API on the LMS host.
+(e.g. `…/admin-portal`). It shares their JWT auth and Paragon styling and calls the
+`admin-portal` REST API on the LMS host.
 
-The LMS plugin also owns `https://<lms>/edl-panel/` (a Django landing route). Two
+The LMS plugin also owns `https://<lms>/admin-portal/` (a Django landing route). Two
 clean ways to make that path show this MFE: (a) the landing view 302-redirects
 to the MFE URL (recommended), or (b) a proxy rule maps it to the MFE. Decide when
 wiring Tutor.
@@ -40,7 +40,7 @@ touching page code.
 
 ```bash
 npm install
-npm start          # serves on http://localhost:8080 (PUBLIC_PATH=/edl-panel/)
+npm start          # serves on http://localhost:8080 (PUBLIC_PATH=/admin-portal/)
 ```
 
 Point `LMS_BASE_URL` in `.env.development` at your LMS. You must be logged into
@@ -62,8 +62,8 @@ from tutormfe.hooks import MFE_APPS
 
 @MFE_APPS.add()
 def _add_edl_panel_mfe(apps):
-    apps["edl-panel"] = {
-        "repository": "https://github.com/edl/frontend-app-edl-panel.git",
+    apps["admin-portal"] = {
+        "repository": "https://github.com/edl/frontend-app-admin-portal.git",
         "port": 8080,
     }
     return apps
@@ -71,7 +71,7 @@ def _add_edl_panel_mfe(apps):
 
 Then `tutor plugins enable edl_panel_mfe`, rebuild the MFE image
 (`tutor images build mfe`), and restart. Configure the CORS/CSRF trusted origins
-on the LMS so the MFE host may call `/edl-panel/api/v1/`.
+on the LMS so the MFE host may call `/admin-portal/api/v1/`.
 
 ## Caveats
 
