@@ -11,9 +11,9 @@ import React from 'react';
 import App from './App';
 import messages from './i18n';
 
-// Ulmo paragon ships compiled CSS (no scss partials). Load the default theme.
-import '@openedx/paragon/dist/core.css';
-import '@openedx/paragon/dist/light.css';
+// Paragon + brand theme CSS is loaded at runtime by frontend-platform from
+// PARAGON_THEME_URLS (indigo sets the edly brand globally), the same as every
+// other Open edX MFE — so we do NOT import paragon CSS directly here.
 import './index.scss';
 
 const render = (children) => {
