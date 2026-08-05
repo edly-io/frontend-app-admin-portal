@@ -9,7 +9,7 @@ import {
 } from '@openedx/paragon';
 
 import { getMe } from './data/api';
-import AccessDenied from './components/AccessDenied';
+import NotFound from './components/NotFound';
 import UsersPage from './pages/UsersPage';
 import CreateUserPage from './pages/CreateUserPage';
 import EnrollPage from './pages/EnrollPage';
@@ -21,7 +21,7 @@ const Header = () => {
   return (
     <Navbar expand="lg" className="border-bottom mb-2" bg="white">
       <Container size="xl">
-        <Navbar.Brand as={Link} to="/">{config.SITE_NAME || 'EDL Panel'}</Navbar.Brand>
+        <Navbar.Brand as={Link} to="/">{config.SITE_NAME || 'Admin Portal'}</Navbar.Brand>
         <Nav className="mr-auto">
           <Nav.Link as={NavLink} to="/" end>Users</Nav.Link>
           <Nav.Link as={NavLink} to="/enroll">Enrollment</Nav.Link>
@@ -43,17 +43,29 @@ const Header = () => {
 };
 
 const App = () => {
-  // 'loading' | 'ok' | 'denied'
+  // 'loading' | 'ok' | 'blocked'
   const [gate, setGate] = useState('loading');
-
-  useEffect(() => { document.title = 'Admin Portal'; }, []);
 
   useEffect(() => {
     getMe()
       .then(() => setGate('ok'))
-      // 403 => authenticated non-admin. Other errors: let pages surface them.
-      .catch((e) => setGate(e?.response?.status === 403 ? 'denied' : 'ok'));
+      // Fail CLOSED. /me/ is IsEdlAdmin-gated, so a 403 means "not an admin".
+      // We also treat EVERY other error (401, 404, network/CORS, 5xx) as
+      // blocked rather than falling through to 'ok' — otherwise a non-admin
+      // (or anyone hitting a transient error) would see the portal shell. The
+      // portal must not be discoverable by non-admins.
+      .catch(() => setGate('blocked'));
   }, []);
+
+  useEffect(() => {
+    // Keep the tab title neutral until we've confirmed admin access, so a
+    // blocked user never even sees "Admin Portal" in the tab.
+    if (gate === 'ok') {
+      document.title = 'Admin Portal';
+    } else if (gate === 'blocked') {
+      document.title = 'Page not found';
+    }
+  }, [gate]);
 
   if (gate === 'loading') {
     return (
@@ -63,8 +75,8 @@ const App = () => {
     );
   }
 
-  if (gate === 'denied') {
-    return <AccessDenied />;
+  if (gate === 'blocked') {
+    return <NotFound />;
   }
 
   return (

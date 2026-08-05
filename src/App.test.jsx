@@ -32,9 +32,19 @@ describe('App gate (EDL-12)', () => {
     expect(screen.getByText('Staff & roles')).toBeInTheDocument();
   });
 
-  it('shows Access denied on a 403 from me', async () => {
+  it('shows a neutral 404 (not the portal) on a 403 from me', async () => {
     getMe.mockRejectedValue({ response: { status: 403 } });
     renderApp();
-    expect(await screen.findByText('Access denied')).toBeInTheDocument();
+    expect(await screen.findByText('404')).toBeInTheDocument();
+    // The portal must not be discoverable: no nav, no group hint.
+    expect(screen.queryByText('Enrollment')).not.toBeInTheDocument();
+    expect(screen.queryByText(/edl_admin/i)).not.toBeInTheDocument();
+  });
+
+  it('fails closed on a non-403 error (e.g. 404/network) instead of showing the portal', async () => {
+    getMe.mockRejectedValue({ response: { status: 404 } });
+    renderApp();
+    expect(await screen.findByText('404')).toBeInTheDocument();
+    expect(screen.queryByText('Enrollment')).not.toBeInTheDocument();
   });
 });

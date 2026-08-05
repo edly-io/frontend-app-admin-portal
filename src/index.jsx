@@ -2,9 +2,10 @@ import 'core-js/stable';
 import 'regenerator-runtime/runtime';
 
 import {
-  APP_INIT_ERROR, APP_READY, subscribe, initialize,
+  APP_INIT_ERROR, APP_READY, subscribe, initialize, getConfig,
 } from '@edx/frontend-platform';
 import { AppProvider, ErrorPage } from '@edx/frontend-platform/react';
+import { BrowserRouter } from 'react-router-dom';
 import { createRoot } from 'react-dom/client';
 import React from 'react';
 
@@ -26,7 +27,19 @@ const render = (children) => {
 };
 
 subscribe(APP_READY, () => {
-  render(<AppProvider><App /></AppProvider>);
+  // frontend-platform's AppProvider sets the React Router basename to the full
+  // PUBLIC_PATH *including* its trailing slash (e.g. "/admin-portal/"). React
+  // Router v6 then refuses to match the slash-less "/admin-portal" URL, so the
+  // bare path renders blank. Supply our own router with a trailing-slash-trimmed
+  // basename, which matches BOTH "/admin-portal" and "/admin-portal/".
+  const basename = (getConfig().PUBLIC_PATH || '/').replace(/\/+$/, '') || '/';
+  render(
+    <AppProvider wrapWithRouter={false}>
+      <BrowserRouter basename={basename}>
+        <App />
+      </BrowserRouter>
+    </AppProvider>,
+  );
 });
 
 subscribe(APP_INIT_ERROR, (error) => {
