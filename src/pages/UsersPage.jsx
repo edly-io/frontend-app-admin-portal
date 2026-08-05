@@ -149,7 +149,7 @@ const UsersPage = () => {
             style={{ minWidth: '22rem' }}
           />
         </Form.Group>
-        <Form.Group className="mb-0">
+        <Form.Group className="mb-0" controlId="status-filter">
           <Form.Label>Status</Form.Label>
           <Form.Control as="select" value={status} onChange={(e) => setStatus(e.target.value)}>
             {STATUS_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}

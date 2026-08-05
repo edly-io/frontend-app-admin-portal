@@ -31,7 +31,9 @@
   "devDependencies": {
     "@edx/browserslist-config": "^1.1.1",
     "@openedx/frontend-build": "^14.6.2",
-    "@testing-library/jest-dom": "^6.4.6"
+    "@testing-library/dom": "^10.4.0",
+    "@testing-library/jest-dom": "^6.4.6",
+    "@testing-library/react": "^15.0.7"
   },
   "browserslist": [
     "extends @edx/browserslist-config"

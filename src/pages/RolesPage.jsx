@@ -78,7 +78,7 @@ const RolesPage = () => {
       </Card>
 
       <Form onSubmit={onSubmit}>
-        <Form.Group>
+        <Form.Group controlId="role-course-id">
           <Form.Label>Course run ID</Form.Label>
           <Form.Control
             placeholder="course-v1:Org+Course+Run"
@@ -88,7 +88,7 @@ const RolesPage = () => {
           />
           {fieldErrors.courseId && <Form.Control.Feedback type="invalid">{fieldErrors.courseId}</Form.Control.Feedback>}
         </Form.Group>
-        <Form.Group>
+        <Form.Group controlId="role-identifier">
           <Form.Label>User (email or username)</Form.Label>
           <Form.Control
             value={identifier}

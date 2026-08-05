@@ -82,17 +82,17 @@ const CreateUserPage = () => {
       {nonFieldError && <Alert variant="danger">{nonFieldError}</Alert>}
 
       <Form onSubmit={onSubmit}>
-        <Form.Group>
+        <Form.Group controlId="username">
           <Form.Label>Username</Form.Label>
           <Form.Control value={values.username} onChange={setField('username')} isInvalid={!!fieldErrors.username} />
           {fieldErrors.username && <Form.Control.Feedback type="invalid">{fieldErrors.username}</Form.Control.Feedback>}
         </Form.Group>
-        <Form.Group>
+        <Form.Group controlId="email">
           <Form.Label>Email</Form.Label>
           <Form.Control type="email" value={values.email} onChange={setField('email')} isInvalid={!!fieldErrors.email} />
           {fieldErrors.email && <Form.Control.Feedback type="invalid">{fieldErrors.email}</Form.Control.Feedback>}
         </Form.Group>
-        <Form.Group>
+        <Form.Group controlId="name">
           <Form.Label>Full name</Form.Label>
           <Form.Control value={values.name} onChange={setField('name')} isInvalid={!!fieldErrors.name} />
           {fieldErrors.name && <Form.Control.Feedback type="invalid">{fieldErrors.name}</Form.Control.Feedback>}
