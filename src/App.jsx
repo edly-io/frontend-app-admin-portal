@@ -46,6 +46,8 @@ const App = () => {
   // 'loading' | 'ok' | 'denied'
   const [gate, setGate] = useState('loading');
 
+  useEffect(() => { document.title = 'Admin Portal'; }, []);
+
   useEffect(() => {
     getMe()
       .then(() => setGate('ok'))
