@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import PropTypes from 'prop-types';
 import {
   Container, Form, Button, Alert, DataTable, Badge, ActionRow,
@@ -42,8 +42,18 @@ const EnrollPage = () => {
   const [results, setResults] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [isUnenrollOpen, openUnenroll, closeUnenroll] = useToggle(false);
+  const resultsRef = useRef(null);
 
   const identifiers = parseIdentifiers(identifiersRaw);
+
+  // Bring the outcome into view — the form can push the results below the
+  // fold, so on completion scroll straight to the summary banner.
+  useEffect(() => {
+    // Optional-chain scrollIntoView: it's absent in jsdom (tests) and older browsers.
+    if (results) {
+      resultsRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
+    }
+  }, [results]);
 
   const run = async (action) => {
     setSubmitting(true);
@@ -135,11 +145,21 @@ const EnrollPage = () => {
       </ActionRow>
 
       {results && (
-        <div className="mt-4">
-          <h2 className="h4">
-            {results.action === 'enroll' ? 'Enrollment' : 'Unenrollment'} results
-            {' '}— {results.successful_operations} ok, {results.failed_operations} failed
-          </h2>
+        <div ref={resultsRef} className="mt-4">
+          <Alert variant={results.failed_operations ? 'warning' : 'success'}>
+            <Alert.Heading>
+              {results.action === 'enroll' ? 'Enrollment' : 'Unenrollment'} complete
+            </Alert.Heading>
+            <span>
+              <strong>{results.successful_operations}</strong>
+              {' '}
+              {results.action === 'enroll' ? 'enrolled' : 'unenrolled'} successfully
+              {results.failed_operations ? (
+                <>, <strong>{results.failed_operations}</strong> failed — see the table below.</>
+              ) : '.'}
+            </span>
+          </Alert>
+          <h2 className="h4">Per-learner results</h2>
           <DataTable
             columns={RESULT_COLUMNS}
             data={results.results || []}

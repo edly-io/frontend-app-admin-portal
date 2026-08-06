@@ -39,7 +39,7 @@ describe('EnrollPage', () => {
       course_id: COURSE,
       identifiers: ['a@e.com', 'bob'],
     })));
-    expect(await screen.findByText(/2 ok, 0 failed/)).toBeInTheDocument();
+    expect(await screen.findByText('Enrollment complete')).toBeInTheDocument();
     expect(screen.getByText('a@e.com')).toBeInTheDocument();
   });
 
