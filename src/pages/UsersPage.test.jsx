@@ -15,10 +15,10 @@ const USERS = {
   count: 2,
   results: [
     {
-      id: 1, username: 'alice', name: 'Alice A', email: 'alice@e.com', is_active: true, status: 'active',
+      id: 1, username: 'alice', name: 'Alice A', email: 'alice@e.com', is_active: true, status: 'active', lms_role: 'learner',
     },
     {
-      id: 2, username: 'bob', name: 'Bob B', email: 'bob@e.com', is_active: false, status: 'disabled',
+      id: 2, username: 'bob', name: 'Bob B', email: 'bob@e.com', is_active: false, status: 'disabled', lms_role: 'staff',
     },
   ],
 };
@@ -40,6 +40,10 @@ describe('UsersPage', () => {
     const table = screen.getByRole('table');
     expect(within(table).getByText('Active')).toBeInTheDocument();
     expect(within(table).getByText('Disabled')).toBeInTheDocument();
+    // LMS Role column: header + per-row values.
+    expect(within(table).getByText('LMS Role')).toBeInTheDocument();
+    expect(within(table).getByText('learner')).toBeInTheDocument();
+    expect(within(table).getByText('staff')).toBeInTheDocument();
   });
 
   it('passes the search term to the API', async () => {

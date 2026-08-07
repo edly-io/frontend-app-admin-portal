@@ -26,6 +26,7 @@ const rowShape = PropTypes.shape({
     name: PropTypes.string,
     email: PropTypes.string,
     status: PropTypes.string,
+    lms_role: PropTypes.string,
   }),
 }).isRequired;
 
@@ -115,6 +116,7 @@ const UsersPage = () => {
     { Header: 'Name', accessor: 'name' },
     { Header: 'Email', accessor: 'email' },
     { Header: 'Status', accessor: 'status', Cell: StatusCell },
+    { Header: 'LMS Role', accessor: 'lms_role' },
     {
       Header: 'Actions', id: 'actions', onAction: askConfirm, Cell: ActionsCell,
     },
