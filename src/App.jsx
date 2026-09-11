@@ -14,6 +14,10 @@ import UsersPage from './pages/UsersPage';
 import CreateUserPage from './pages/CreateUserPage';
 import EnrollPage from './pages/EnrollPage';
 import RolesPage from './pages/RolesPage';
+import ReportingLayout from './pages/ReportingLayout';
+import ReportingDashboardPage from './pages/ReportingDashboardPage';
+import ReportingCoursesPage from './pages/ReportingCoursesPage';
+import CourseReportsPage from './pages/CourseReportsPage';
 
 const Header = () => {
   const { authenticatedUser } = useContext(AppContext);
@@ -26,6 +30,7 @@ const Header = () => {
           <Nav.Link as={NavLink} to="/" end>Users</Nav.Link>
           <Nav.Link as={NavLink} to="/enroll">Enrollment</Nav.Link>
           <Nav.Link as={NavLink} to="/staff">Staff &amp; roles</Nav.Link>
+          <Nav.Link as={NavLink} to="/reporting">Reporting</Nav.Link>
         </Nav>
         {authenticatedUser && (
           <Dropdown>
@@ -88,6 +93,11 @@ const App = () => {
           <Route path="/users/new" element={<CreateUserPage />} />
           <Route path="/enroll" element={<EnrollPage />} />
           <Route path="/staff" element={<RolesPage />} />
+          <Route path="/reporting" element={<ReportingLayout />}>
+            <Route index element={<ReportingDashboardPage />} />
+            <Route path="courses" element={<ReportingCoursesPage />} />
+          </Route>
+          <Route path="/reporting/courses/:courseId" element={<CourseReportsPage />} />
         </Routes>
       </main>
     </>

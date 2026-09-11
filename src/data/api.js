@@ -54,3 +54,49 @@ export async function changeRole(payload) {
   const { data } = await client().post(`${apiBaseUrl()}/roles/`, payload);
   return data;
 }
+
+/* ---- Reporting ---- */
+
+/** KPI row: learners, registrations (MoM + delta), courses, active enrollments. `params`: { force_refresh }. */
+export async function getReportingSummary(params = {}) {
+  const { data } = await client().get(`${apiBaseUrl()}/reporting/summary/`, { params });
+  return data;
+}
+
+/** Monthly trend series. `params`: { months, force_refresh }. */
+export async function getReportingTrends(params = {}) {
+  const { data } = await client().get(`${apiBaseUrl()}/reporting/trends/`, { params });
+  return data;
+}
+
+/** Non-time-series breakdowns (lean cut: course lifecycle). `params`: { force_refresh }. */
+export async function getReportingBreakdowns(params = {}) {
+  const { data } = await client().get(`${apiBaseUrl()}/reporting/breakdowns/`, { params });
+  return data;
+}
+
+/** Paginated, annotated course-run list. `params`: { search, ordering, page }. */
+export async function getCourseReports(params = {}) {
+  const { data } = await client().get(`${apiBaseUrl()}/reporting/courses/`, { params });
+  return data;
+}
+
+const courseReportsBase = (courseId) => `${apiBaseUrl()}/reporting/courses/${encodeURIComponent(courseId)}/reports`;
+
+/** Queue an async report export for a course. Returns { task_id, report_type }. */
+export async function triggerCourseReport(courseId, reportType) {
+  const { data } = await client().post(`${courseReportsBase(courseId)}/trigger/`, { report_type: reportType });
+  return data;
+}
+
+/** Recent report tasks (all types) for a course with fresh download URLs. */
+export async function getCourseReportDownloads(courseId) {
+  const { data } = await client().get(`${courseReportsBase(courseId)}/downloads/`);
+  return data;
+}
+
+/** Issued certificates for a course. */
+export async function getCourseCertificates(courseId) {
+  const { data } = await client().get(`${courseReportsBase(courseId)}/certificates/`);
+  return data;
+}
