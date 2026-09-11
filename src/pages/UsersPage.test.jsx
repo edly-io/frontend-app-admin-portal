@@ -15,10 +15,10 @@ const USERS = {
   count: 2,
   results: [
     {
-      id: 1, username: 'alice', name: 'Alice A', email: 'alice@e.com', is_active: true, status: 'active', lms_role: 'learner',
+      id: 1, username: 'alice', name: 'Alice A', email: 'alice@e.com', is_active: true, status: 'active', lms_role: 'learner', enrollment_count: 3,
     },
     {
-      id: 2, username: 'bob', name: 'Bob B', email: 'bob@e.com', is_active: false, status: 'disabled', lms_role: 'staff',
+      id: 2, username: 'bob', name: 'Bob B', email: 'bob@e.com', is_active: false, status: 'disabled', lms_role: 'staff', enrollment_count: null,
     },
   ],
 };
@@ -44,6 +44,15 @@ describe('UsersPage', () => {
     expect(within(table).getByText('LMS Role')).toBeInTheDocument();
     expect(within(table).getByText('learner')).toBeInTheDocument();
     expect(within(table).getByText('staff')).toBeInTheDocument();
+  });
+
+  it('shows the enrollment count, or a dash when the backend could not compute it', async () => {
+    renderPage();
+    await screen.findByText('alice');
+    const table = screen.getByRole('table');
+    expect(within(table).getByText('Enrollments')).toBeInTheDocument();
+    expect(within(table).getByText('3')).toBeInTheDocument();
+    expect(within(table).getByText('—')).toBeInTheDocument();
   });
 
   it('passes the search term to the API', async () => {

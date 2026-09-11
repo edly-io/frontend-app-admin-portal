@@ -27,11 +27,18 @@ const rowShape = PropTypes.shape({
     email: PropTypes.string,
     status: PropTypes.string,
     lms_role: PropTypes.string,
+    enrollment_count: PropTypes.number,
   }),
 }).isRequired;
 
 const StatusCell = ({ row }) => <StatusBadge status={row.original.status} />;
 StatusCell.propTypes = { row: rowShape };
+
+// null means the backend couldn't compute it (standalone/non-LMS deployment).
+const EnrollmentsCell = ({ row }) => (
+  <span>{row.original.enrollment_count ?? '—'}</span>
+);
+EnrollmentsCell.propTypes = { row: rowShape };
 
 const ActionsCell = ({ row, column }) => {
   const user = row.original;
@@ -117,6 +124,7 @@ const UsersPage = () => {
     { Header: 'Email', accessor: 'email' },
     { Header: 'Status', accessor: 'status', Cell: StatusCell },
     { Header: 'LMS Role', accessor: 'lms_role' },
+    { Header: 'Enrollments', accessor: 'enrollment_count', Cell: EnrollmentsCell },
     {
       Header: 'Actions', id: 'actions', onAction: askConfirm, Cell: ActionsCell,
     },
