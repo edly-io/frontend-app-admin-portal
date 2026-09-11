@@ -58,6 +58,20 @@ describe('CourseReportsPage', () => {
     await waitFor(() => expect(getCourseReportDownloads).toHaveBeenCalledTimes(2));
   });
 
+  it('shows immediate "Queuing…" feedback on click, before the request resolves', async () => {
+    let resolveTrigger;
+    triggerCourseReport.mockReturnValue(new Promise((resolve) => { resolveTrigger = resolve; }));
+    renderPage();
+    await screen.findByText('Grade Report');
+    fireEvent.click(screen.getByRole('button', { name: 'Generate report' }));
+    fireEvent.click(await screen.findByText('Profile Information'));
+
+    expect(await screen.findByRole('button', { name: /Queuing/ })).toBeDisabled();
+
+    resolveTrigger({ task_id: 't2', report_type: 'profile_info' });
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Generate report' })).not.toBeDisabled());
+  });
+
   it('surfaces an already-running 400 error', async () => {
     triggerCourseReport.mockRejectedValue({
       customAttributes: { httpErrorStatus: 400 },

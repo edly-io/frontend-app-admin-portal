@@ -70,6 +70,7 @@ const CourseReportsPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [toast, setToast] = useState('');
+  const [triggeringSlug, setTriggeringSlug] = useState(null);
   const timerRef = useRef(null);
 
   const fetchDownloads = useCallback(async () => {
@@ -89,7 +90,12 @@ const CourseReportsPage = () => {
         setCertificates(certs.results || []);
         setError('');
       })
-      .catch(() => active && setError('Could not load course reports.'))
+      .catch((err) => {
+        if (!active) { return; }
+        setError(err?.customAttributes?.httpErrorStatus === 403
+          ? 'You do not have EDL admin access.'
+          : 'Could not load course reports.');
+      })
       .finally(() => active && setLoading(false));
     return () => { active = false; };
   }, [courseId]);
@@ -110,7 +116,9 @@ const CourseReportsPage = () => {
   }, [downloads, fetchDownloads]);
 
   const onTrigger = async (slug, label) => {
+    if (triggeringSlug) { return; } // one in flight at a time; the menu is disabled anyway
     setError('');
+    setTriggeringSlug(slug);
     try {
       await triggerCourseReport(courseId, slug);
       setToast(`${label} queued.`);
@@ -123,6 +131,8 @@ const CourseReportsPage = () => {
       } else {
         setError('Could not queue the report. Please try again.');
       }
+    } finally {
+      setTriggeringSlug(null);
     }
   };
 
@@ -157,10 +167,21 @@ const CourseReportsPage = () => {
           <div className="d-flex justify-content-between align-items-center">
             <h2 className="h5 mb-0">Generate a report</h2>
             <Dropdown>
-              <Dropdown.Toggle variant="primary" id="report-type-menu">Generate report</Dropdown.Toggle>
+              <Dropdown.Toggle variant="primary" id="report-type-menu" disabled={!!triggeringSlug}>
+                {triggeringSlug ? (
+                  <>
+                    <Spinner animation="border" size="sm" screenReaderText="Queuing" className="mr-1" />
+                    Queuing…
+                  </>
+                ) : 'Generate report'}
+              </Dropdown.Toggle>
               <Dropdown.Menu>
                 {REPORT_TYPES.map((r) => (
-                  <Dropdown.Item key={r.slug} onClick={() => onTrigger(r.slug, r.label)}>
+                  <Dropdown.Item
+                    key={r.slug}
+                    disabled={!!triggeringSlug}
+                    onClick={() => onTrigger(r.slug, r.label)}
+                  >
                     {r.label}
                   </Dropdown.Item>
                 ))}

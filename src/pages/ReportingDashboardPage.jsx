@@ -87,7 +87,10 @@ const ReportingDashboardPage = () => {
     );
   }
 
-  if (error) {
+  // A failed FIRST load has no data to show, so it replaces the page. A
+  // failed soft reload (Refresh button, trend-window change) keeps the
+  // last-good data on screen and only surfaces an inline alert above it.
+  if (error && !summary) {
     return (
       <Alert variant="danger">
         {error.customAttributes?.httpErrorStatus === 403
@@ -107,6 +110,11 @@ const ReportingDashboardPage = () => {
 
   return (
     <>
+      {error && summary && (
+        <Alert variant="danger" className="mb-4">
+          Could not refresh reporting data. Showing the last loaded values.
+        </Alert>
+      )}
       <div className="d-flex justify-content-between align-items-end flex-wrap mb-4" style={{ gap: '1rem' }}>
         {summary?.generated_at ? (
           <p className="text-muted small mb-0">
@@ -193,7 +201,7 @@ const ReportingDashboardPage = () => {
             />
           </ChartCard>
         </Col>
-      </Row> 
+      </Row>
     </>
   );
 };

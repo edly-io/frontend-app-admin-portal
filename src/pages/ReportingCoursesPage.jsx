@@ -1,5 +1,5 @@
 import React, {
-  useCallback, useEffect, useMemo, useState,
+  useCallback, useEffect, useMemo, useRef, useState,
 } from 'react';
 import PropTypes from 'prop-types';
 import { Link } from 'react-router-dom';
@@ -51,18 +51,23 @@ const ReportingCoursesPage = () => {
   const [data, setData] = useState({ count: 0, results: [] });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const latestRequestRef = useRef(0);
 
   const fetchCourses = useCallback(async () => {
+    const requestId = ++latestRequestRef.current;
     setLoading(true);
     try {
       const params = { page };
       if (search) { params.search = search; }
-      setData(await getCourseReports(params));
+      const result = await getCourseReports(params);
+      if (requestId !== latestRequestRef.current) { return; }
+      setData(result);
       setError(null);
     } catch (e) {
+      if (requestId !== latestRequestRef.current) { return; }
       setError(e);
     } finally {
-      setLoading(false);
+      if (requestId === latestRequestRef.current) { setLoading(false); }
     }
   }, [search, page]);
 
