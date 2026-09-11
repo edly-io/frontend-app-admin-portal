@@ -20,6 +20,7 @@ const COURSES = {
       enrollment_count: 30,
       unenrolled_count: 2,
       lifecycle_state: 'running',
+      created: '2026-01-15T09:00:00+00:00',
     },
     {
       course_id: 'course-v1:Org+B+2026',
@@ -45,6 +46,17 @@ describe('ReportingCoursesPage', () => {
     expect(within(table).getByText('Running')).toBeInTheDocument();
     expect(within(table).getByText('Ended')).toBeInTheDocument();
     expect(within(table).getByText('30')).toBeInTheDocument();
+  });
+
+  it('shows the course key and creation date, with a dash when creation date is missing', async () => {
+    renderWithProviders(<ReportingCoursesPage />);
+    await screen.findByText('Algebra');
+    const table = screen.getByRole('table');
+    expect(within(table).getByText('Key')).toBeInTheDocument();
+    expect(within(table).getByText('course-v1:Org+A+2026')).toBeInTheDocument();
+    expect(within(table).getByText('Creation Date')).toBeInTheDocument();
+    expect(within(table).getByText(new Date('2026-01-15T09:00:00+00:00').toLocaleDateString())).toBeInTheDocument();
+    expect(within(table).getByText('—')).toBeInTheDocument();
   });
 
   it('links each course to its report detail page (encoded id)', async () => {

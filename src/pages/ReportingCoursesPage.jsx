@@ -29,6 +29,7 @@ const rowShape = PropTypes.shape({
     course_id: PropTypes.string,
     display_name: PropTypes.string,
     lifecycle_state: PropTypes.string,
+    created: PropTypes.string,
   }),
 }).isRequired;
 
@@ -44,6 +45,11 @@ const StateCell = ({ row }) => {
   return <Badge variant={LIFECYCLE_VARIANTS[state] || 'light'}>{LIFECYCLE_LABELS[state] || state}</Badge>;
 };
 StateCell.propTypes = { row: rowShape };
+
+const CreatedCell = ({ row }) => (
+  <span>{row.original.created ? new Date(row.original.created).toLocaleDateString() : '—'}</span>
+);
+CreatedCell.propTypes = { row: rowShape };
 
 const ReportingCoursesPage = () => {
   const [search, setSearch] = useState('');
@@ -79,10 +85,11 @@ const ReportingCoursesPage = () => {
   useEffect(() => { setPage(1); }, [search]);
 
   const columns = useMemo(() => [
-    { Header: 'Course', accessor: 'display_name', Cell: CourseCell },
-    { Header: 'Org', accessor: 'org' },
-    { Header: 'Enrollments', accessor: 'enrollment_count' },
-    { Header: 'State', accessor: 'lifecycle_state', Cell: StateCell },
+    { Header: 'Course Name', accessor: 'display_name', Cell: CourseCell },
+    { Header: 'Key', accessor: 'course_id' },
+    { Header: 'Creation Date', accessor: 'created', Cell: CreatedCell },
+    { Header: 'Status', accessor: 'lifecycle_state', Cell: StateCell },
+    { Header: '# of enrollments', accessor: 'enrollment_count' },
   ], []);
 
   const pageCount = Math.max(1, Math.ceil(data.count / PAGE_SIZE));
