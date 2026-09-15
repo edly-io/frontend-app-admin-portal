@@ -25,8 +25,8 @@ const Header = () => {
   return (
     <Navbar expand="lg" className="border-bottom mb-2" bg="white">
       <Container size="xl">
-        <Navbar.Brand href={config.LMS_BASE_URL} target="_blank" rel="noopener noreferrer">
-          {config.SITE_NAME || 'Admin Portal'}
+        <Navbar.Brand as={NavLink} to="/">
+          <img className="logo-image" src={config.LOGO_URL} alt={config.SITE_NAME || 'Open edX'} height="40" />
         </Navbar.Brand>
         <Nav className="mr-auto">
           <Nav.Link as={NavLink} to="/" end>Users</Nav.Link>

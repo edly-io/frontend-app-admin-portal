@@ -27,8 +27,8 @@ const TREND_WINDOW_OPTIONS = [
 
 const ChartCard = ({ title, children }) => (
   <Card className="h-100">
-    <Card.Body className="pt-4">
-      <h3 className="h5 mb-3 pl-1">{title}</h3>
+    <Card.Body className="pt-3">
+      <h3 className="h5 mb-3 pl-3">{title}</h3>
       {children}
     </Card.Body>
   </Card>

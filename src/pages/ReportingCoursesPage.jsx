@@ -9,6 +9,7 @@ import {
 
 import { getCourseReports } from '../data/api';
 import { formatDate } from '../utils/formatDate';
+import useDebouncedEffect from '../hooks/useDebouncedEffect';
 
 const PAGE_SIZE = 25;
 
@@ -78,10 +79,7 @@ const ReportingCoursesPage = () => {
     }
   }, [search, page]);
 
-  useEffect(() => {
-    const handle = setTimeout(fetchCourses, 300); // debounce
-    return () => clearTimeout(handle);
-  }, [fetchCourses]);
+  useDebouncedEffect(fetchCourses, [fetchCourses]);
 
   useEffect(() => { setPage(1); }, [search]);
 

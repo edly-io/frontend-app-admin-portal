@@ -238,7 +238,12 @@ const CourseReportsPage = () => {
                       placement="right"
                       overlay={<Tooltip id={`report-tooltip-${r.slug}`}>{r.description}</Tooltip>}
                     >
-                      <Icon src={InfoOutline} size="xs" className="ml-2 text-muted" />
+                      <span
+                        role="presentation"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <Icon src={InfoOutline} size="xs" className="ml-2 text-muted" />
+                      </span>
                     </OverlayTrigger>
                   </Dropdown.Item>
                 ))}
