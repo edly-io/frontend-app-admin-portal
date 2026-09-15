@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useState } from 'react';
+import React, { useContext, useEffect } from 'react';
 import {
   Routes, Route, NavLink,
 } from 'react-router-dom';
@@ -8,7 +8,7 @@ import {
   Navbar, Container, Nav, Dropdown, Spinner,
 } from '@openedx/paragon';
 
-import { getMe } from './data/api';
+import { useMe } from './data/hooks/me';
 import NotFound from './components/NotFound';
 import UsersPage from './pages/UsersPage';
 import CreateUserPage from './pages/CreateUserPage';
@@ -50,19 +50,20 @@ const Header = () => {
 };
 
 const App = () => {
-  // 'loading' | 'ok' | 'blocked'
-  const [gate, setGate] = useState('loading');
+  const { isPending, isError } = useMe();
 
-  useEffect(() => {
-    getMe()
-      .then(() => setGate('ok'))
-      // Fail CLOSED. /me/ is IsEdlAdmin-gated, so a 403 means "not an admin".
-      // We also treat EVERY other error (401, 404, network/CORS, 5xx) as
-      // blocked rather than falling through to 'ok' — otherwise a non-admin
-      // (or anyone hitting a transient error) would see the portal shell. The
-      // portal must not be discoverable by non-admins.
-      .catch(() => setGate('blocked'));
-  }, []);
+  // 'loading' | 'ok' | 'blocked'
+  // Fail CLOSED. /me/ is IsEdlAdmin-gated, so a 403 means "not an admin".
+  // We also treat EVERY other error (401, 404, network/CORS, 5xx) as
+  // blocked rather than falling through to 'ok' — otherwise a non-admin
+  // (or anyone hitting a transient error) would see the portal shell. The
+  // portal must not be discoverable by non-admins.
+  let gate = 'ok';
+  if (isPending) {
+    gate = 'loading';
+  } else if (isError) {
+    gate = 'blocked';
+  }
 
   useEffect(() => {
     // Keep the tab title neutral until we've confirmed admin access, so a

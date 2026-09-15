@@ -7,9 +7,11 @@ import {
 import { AppProvider, ErrorPage } from '@edx/frontend-platform/react';
 import { BrowserRouter } from 'react-router-dom';
 import { createRoot } from 'react-dom/client';
+import { QueryClientProvider } from '@tanstack/react-query';
 import React from 'react';
 
 import App from './App';
+import { createQueryClient } from './data/queryClient';
 import messages from './i18n';
 
 // Bundle the brand theme from the app's OWN origin. Indigo swaps @edx/brand to
@@ -20,6 +22,11 @@ import messages from './i18n';
 import '@openedx/paragon/dist/core.css';
 import '@openedx/paragon/dist/light.css';
 import './index.scss';
+
+// One client for the lifetime of the page. App itself gates on a query, so
+// the provider has to sit outside <App/>, and it is created out here so a
+// re-entrant APP_READY could never swap the cache out from under it.
+const queryClient = createQueryClient();
 
 const render = (children) => {
   const root = createRoot(document.getElementById('root'));
@@ -34,11 +41,13 @@ subscribe(APP_READY, () => {
   // basename, which matches BOTH "/admin-portal" and "/admin-portal/".
   const basename = (getConfig().PUBLIC_PATH || '/').replace(/\/+$/, '') || '/';
   render(
-    <AppProvider wrapWithRouter={false}>
-      <BrowserRouter basename={basename}>
-        <App />
-      </BrowserRouter>
-    </AppProvider>,
+    <QueryClientProvider client={queryClient}>
+      <AppProvider wrapWithRouter={false}>
+        <BrowserRouter basename={basename}>
+          <App />
+        </BrowserRouter>
+      </AppProvider>
+    </QueryClientProvider>,
   );
 });
 

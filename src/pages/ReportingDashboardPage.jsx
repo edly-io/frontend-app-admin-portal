@@ -1,13 +1,11 @@
-import React, {
-  useEffect, useRef, useState,
-} from 'react';
+import React, { useState } from 'react';
 import PropTypes from 'prop-types';
 import {
   Row, Col, Card, Alert, Spinner, Button, Form,
 } from '@openedx/paragon';
 import { Refresh } from '@openedx/paragon/icons';
 
-import { getReportingSummary, getReportingTrends, getReportingBreakdowns } from '../data/api';
+import { useReportingDashboard } from '../data/hooks/reporting';
 import KpiCard from '../components/KpiCard';
 import MetricChart from '../components/MetricChart';
 import { formatDateTime } from '../utils/formatDate';
@@ -40,76 +38,17 @@ ChartCard.propTypes = {
 };
 
 const ReportingDashboardPage = () => {
-  const [summary, setSummary] = useState(null);
-  const [trends, setTrends] = useState(null);
-  const [breakdowns, setBreakdowns] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState(null);
   const [months, setMonths] = useState(12);
-  const mountedRef = useRef(true);
-  const isFirstMonthsRenderRef = useRef(true);
-  useEffect(() => () => { mountedRef.current = false; }, []);
 
-  // Initial load: all three endpoints, full-page spinner.
-  useEffect(() => {
-    setLoading(true);
-    Promise.all([
-      getReportingSummary(),
-      getReportingTrends({ months }),
-      getReportingBreakdowns(),
-    ])
-      .then(([s, t, b]) => {
-        if (!mountedRef.current) { return; }
-        setSummary(s);
-        setTrends(t);
-        setBreakdowns(b);
-        setError(null);
-      })
-      .catch((e) => mountedRef.current && setError(e))
-      .finally(() => mountedRef.current && setLoading(false));
-    // Initial load only — the trend window is handled by its own effect below.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // The very first fetch shows the full-page spinner; every later one (the
+  // Refresh button, or picking a different trend window) is a soft reload
+  // that keeps the page visible and only flags the KPI cards as loading.
+  const {
+    summary, trends, breakdowns,
+    isLoading, isRefreshing, isSummaryFetching, hasAllData, error, refresh,
+  } = useReportingDashboard(months);
 
-  // The Refresh button re-pulls all three endpoints with force_refresh, and
-  // flags the KPI cards (and itself) as loading while in flight.
-  const refresh = () => {
-    setRefreshing(true);
-    return Promise.all([
-      getReportingSummary({ force_refresh: 1 }),
-      getReportingTrends({ months, force_refresh: 1 }),
-      getReportingBreakdowns({ force_refresh: 1 }),
-    ])
-      .then(([s, t, b]) => {
-        if (!mountedRef.current) { return; }
-        setSummary(s);
-        setTrends(t);
-        setBreakdowns(b);
-        setError(null);
-      })
-      .catch((e) => mountedRef.current && setError(e))
-      .finally(() => mountedRef.current && setRefreshing(false));
-  };
-
-  // Picking a different trend window only affects the trend charts, so it
-  // refetches trends alone — summary/breakdowns (and the KPI cards' loading
-  // state) are untouched, and there's no full-page/KPI loader for it.
-  useEffect(() => {
-    if (isFirstMonthsRenderRef.current) {
-      isFirstMonthsRenderRef.current = false;
-      return;
-    }
-    getReportingTrends({ months })
-      .then((t) => {
-        if (!mountedRef.current) { return; }
-        setTrends(t);
-        setError(null);
-      })
-      .catch((e) => mountedRef.current && setError(e));
-  }, [months]);
-
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="d-flex justify-content-center py-5">
         <Spinner animation="border" screenReaderText="Loading reporting" />
@@ -120,7 +59,7 @@ const ReportingDashboardPage = () => {
   // A failed FIRST load has no data to show, so it replaces the page. A
   // failed soft reload (Refresh button, trend-window change) keeps the
   // last-good data on screen and only surfaces an inline alert above it.
-  if (error && !summary) {
+  if (error && !hasAllData) {
     return (
       <Alert variant="danger">
         {error.customAttributes?.httpErrorStatus === 403
@@ -140,7 +79,7 @@ const ReportingDashboardPage = () => {
 
   return (
     <>
-      {error && summary && (
+      {error && hasAllData && (
         <Alert variant="danger" className="mb-4">
           Could not refresh reporting data. Showing the last loaded values.
         </Alert>
@@ -155,33 +94,33 @@ const ReportingDashboardPage = () => {
           variant="outline-primary"
           size="sm"
           iconBefore={Refresh}
-          disabled={refreshing}
-          onClick={refresh}
+          disabled={isRefreshing}
+          onClick={() => refresh()}
         >
-          {refreshing ? 'Refreshing…' : 'Refresh metrics'}
+          {isRefreshing ? 'Refreshing…' : 'Refresh metrics'}
         </Button>
       </div>
 
       <Row className="mb-4">
         <Col xs={6} md={4} lg className="mb-3 mb-lg-0">
-          <KpiCard label="Total learners" value={fmt(summary?.total_learners)} isLoading={refreshing} />
+          <KpiCard label="Total learners" value={fmt(summary?.total_learners)} isLoading={isSummaryFetching} />
         </Col>
         <Col xs={6} md={4} lg className="mb-3 mb-lg-0">
           <KpiCard
             label="New registrations"
             value={fmt(summary?.new_registrations_this_month)}
             delta={summary?.new_registrations_delta_pct ?? undefined}
-            isLoading={refreshing}
+            isLoading={isSummaryFetching}
           />
         </Col>
         <Col xs={6} md={4} lg className="mb-3 mb-lg-0">
-          <KpiCard label="Total courses" value={fmt(summary?.total_courses)} isLoading={refreshing} />
+          <KpiCard label="Total courses" value={fmt(summary?.total_courses)} isLoading={isSummaryFetching} />
         </Col>
         <Col xs={6} md={4} lg className="mb-3 mb-lg-0">
-          <KpiCard label="Running courses" value={fmt(summary?.running_courses)} isLoading={refreshing} />
+          <KpiCard label="Running courses" value={fmt(summary?.running_courses)} isLoading={isSummaryFetching} />
         </Col>
         <Col xs={6} md={4} lg>
-          <KpiCard label="Active enrollments" value={fmt(summary?.active_enrollments)} isLoading={refreshing} />
+          <KpiCard label="Active enrollments" value={fmt(summary?.active_enrollments)} isLoading={isSummaryFetching} />
         </Col>
       </Row>
 

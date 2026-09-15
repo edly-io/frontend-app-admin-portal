@@ -43,8 +43,10 @@ beforeEach(() => {
 describe('CourseReportsPage', () => {
   it('shows the decoded course id and existing downloads', async () => {
     renderPage();
-    expect(await screen.findByText(COURSE_ID)).toBeInTheDocument();
-    expect(screen.getByText('Grade Report')).toBeInTheDocument();
+    // Wait on the fetched row, not the course id: the id comes from the URL
+    // and is on screen before the downloads request has even been made.
+    expect(await screen.findByText('Grade Report')).toBeInTheDocument();
+    expect(screen.getByText(COURSE_ID)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Download/ })).toHaveAttribute('href', 'https://s3/g.csv');
   });
 

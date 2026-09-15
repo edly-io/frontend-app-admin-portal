@@ -1,6 +1,4 @@
-import React, {
-  useCallback, useEffect, useMemo, useState,
-} from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import PropTypes from 'prop-types';
 import { Link } from 'react-router-dom';
 import {
@@ -8,11 +6,12 @@ import {
   ModalDialog, ActionRow, Toast, useToggle,
 } from '@openedx/paragon';
 
-import { getUsers, setUserActive } from '../data/api';
+import { useUsers, useSetUserActive } from '../data/hooks/users';
+import { useDebouncedValue } from '../data/hooks/useDebouncedValue';
 import StatusBadge from '../components/StatusBadge';
-import useDebouncedEffect from '../hooks/useDebouncedEffect';
 
 const PAGE_SIZE = 25;
+const SEARCH_DEBOUNCE_MS = 300;
 
 const STATUS_OPTIONS = [
   { label: 'All statuses', value: '' },
@@ -65,55 +64,58 @@ const UsersPage = () => {
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('');
   const [page, setPage] = useState(1);
+  const debouncedSearch = useDebouncedValue(search, SEARCH_DEBOUNCE_MS);
 
-  const [data, setData] = useState({ count: 0, results: [] });
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const {
+    data, isFetching, error: queryError, errorUpdatedAt, dataUpdatedAt,
+  } = useUsers({
+    search: debouncedSearch,
+    status,
+    page,
+    pageSize: PAGE_SIZE,
+    // Hold the request until the debounce has caught up. `status` and `page`
+    // are not debounced, so a filter change mid-typing would otherwise fire a
+    // request carrying the previous search term.
+    enabled: search === debouncedSearch,
+  });
+  const setActive = useSetUserActive();
 
+  const [dismissedReadErrorAt, setDismissedReadErrorAt] = useState(0);
   const [pending, setPending] = useState(null); // { user, activate }
-  const [submitting, setSubmitting] = useState(false);
   const [isConfirmOpen, openConfirm, closeConfirm] = useToggle(false);
   const [toast, setToast] = useState('');
 
-  const fetchUsers = useCallback(async () => {
-    setLoading(true);
-    try {
-      const params = { page, page_size: PAGE_SIZE };
-      if (search) { params.search = search; }
-      if (status) { params.status = status; }
-      setData(await getUsers(params));
-      setError(null);
-    } catch (e) {
-      setError(e);
-    } finally {
-      setLoading(false);
-    }
-  }, [search, status, page]);
-
-  useDebouncedEffect(fetchUsers, [fetchUsers]);
-
-  // Reset to page 1 whenever the filters change.
-  useEffect(() => { setPage(1); }, [search, status]);
+  // Whichever of the write and the read happened most recently wins the
+  // single alert slot. A read "happening" means either outcome — success or
+  // failure — so a successful reload retires a stale write error exactly
+  // like a newer read failure would: both mean a read has landed since the
+  // write, and the write is no longer the most current thing to report.
+  const lastReadAt = Math.max(errorUpdatedAt || 0, dataUpdatedAt || 0);
+  const writeSupersededByRead = lastReadAt > (setActive.submittedAt || 0);
+  const showWriteError = setActive.isError && !writeSupersededByRead;
+  const showReadError = !showWriteError && queryError && errorUpdatedAt > dismissedReadErrorAt;
+  let error = null;
+  if (showWriteError) {
+    error = setActive.error;
+  } else if (showReadError) {
+    error = queryError;
+  }
 
   const askConfirm = useCallback((user, activate) => {
     setPending({ user, activate });
     openConfirm();
   }, [openConfirm]);
 
-  const doConfirm = async () => {
-    setSubmitting(true);
-    try {
-      await setUserActive(pending.user.username, pending.activate);
-      setToast(`${pending.user.username} ${pending.activate ? 'reactivated' : 'deactivated'}.`);
-      closeConfirm();
-      setPending(null);
-      fetchUsers();
-    } catch (e) {
-      setError(e);
-      closeConfirm();
-    } finally {
-      setSubmitting(false);
-    }
+  const doConfirm = () => {
+    const { user, activate } = pending;
+    setActive.mutate({ username: user.username, activate }, {
+      onSuccess: () => {
+        setToast(`${user.username} ${activate ? 'reactivated' : 'deactivated'}.`);
+        closeConfirm();
+        setPending(null);
+      },
+      onError: () => closeConfirm(),
+    });
   };
 
   const columns = useMemo(() => [
@@ -139,7 +141,13 @@ const UsersPage = () => {
       </div>
 
       {error && (
-        <Alert variant="danger" dismissible onClose={() => setError(null)}>
+        <Alert
+          variant="danger"
+          dismissible
+          onClose={() => {
+            if (showWriteError) { setActive.reset(); } else { setDismissedReadErrorAt(errorUpdatedAt); }
+          }}
+        >
           {error.customAttributes?.httpErrorStatus === 403
             ? 'You do not have EDL admin access.'
             : 'Something went wrong. Please try again.'}
@@ -153,19 +161,23 @@ const UsersPage = () => {
             type="text"
             placeholder="name, username or email"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
             style={{ minWidth: '22rem' }}
           />
         </Form.Group>
         <Form.Group className="mb-0" controlId="status-filter">
           <Form.Label>Status</Form.Label>
-          <Form.Control as="select" value={status} onChange={(e) => setStatus(e.target.value)}>
+          <Form.Control
+            as="select"
+            value={status}
+            onChange={(e) => { setStatus(e.target.value); setPage(1); }}
+          >
             {STATUS_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
           </Form.Control>
         </Form.Group>
       </div>
 
-      {loading ? (
+      {isFetching ? (
         <div className="d-flex justify-content-center py-5">
           <Spinner animation="border" screenReaderText="Loading users" />
         </div>
@@ -198,13 +210,13 @@ const UsersPage = () => {
         </ModalDialog.Body>
         <ModalDialog.Footer>
           <ActionRow>
-            <Button variant="tertiary" onClick={closeConfirm} disabled={submitting}>Cancel</Button>
+            <Button variant="tertiary" onClick={closeConfirm} disabled={setActive.isPending}>Cancel</Button>
             <Button
               variant={pending?.activate ? 'primary' : 'danger'}
               onClick={doConfirm}
-              disabled={submitting}
+              disabled={setActive.isPending}
             >
-              {submitting ? 'Working…' : confirmLabel}
+              {setActive.isPending ? 'Working…' : confirmLabel}
             </Button>
           </ActionRow>
         </ModalDialog.Footer>

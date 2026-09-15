@@ -1,11 +1,13 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, {
+  useEffect, useMemo, useRef, useState,
+} from 'react';
 import PropTypes from 'prop-types';
 import {
   Container, Form, Button, Alert, DataTable, Badge, ActionRow,
   ModalDialog, useToggle,
 } from '@openedx/paragon';
 
-import { updateEnrollments } from '../data/api';
+import { useUpdateEnrollments } from '../data/hooks/enrollments';
 import CourseIdField from '../components/CourseIdField';
 
 const parseIdentifiers = (raw) => raw
@@ -32,20 +34,36 @@ const RESULT_COLUMNS = [
 ];
 
 const EnrollPage = () => {
+  const enroll = useUpdateEnrollments();
+
   const [courseId, setCourseId] = useState('');
   const [identifiersRaw, setIdentifiersRaw] = useState('');
   const [emailStudents, setEmailStudents] = useState(false);
   const [autoEnroll, setAutoEnroll] = useState(false);
   const [reason, setReason] = useState('');
 
-  const [fieldErrors, setFieldErrors] = useState({});
-  const [error, setError] = useState('');
-  const [results, setResults] = useState(null);
-  const [submitting, setSubmitting] = useState(false);
   const [isUnenrollOpen, openUnenroll, closeUnenroll] = useToggle(false);
   const resultsRef = useRef(null);
 
   const identifiers = parseIdentifiers(identifiersRaw);
+  const submitting = enroll.isPending;
+
+  // DRF answers a bad request with field-keyed errors; anything else is a
+  // generic failure banner. A new mutate clears both, as the old reset did.
+  const body = enroll.error?.response?.data || {};
+  const hasFieldErrors = !!(body.course_id || body.identifiers);
+  const fieldErrors = hasFieldErrors ? {
+    courseId: [].concat(body.course_id || []).join(' '),
+    identifiers: [].concat(body.identifiers || []).join(' '),
+  } : {};
+  const error = enroll.error && !hasFieldErrors ? 'Something went wrong. Please try again.' : '';
+
+  // Memoised so the scroll-into-view effect below fires once per completed
+  // run rather than on every render.
+  const results = useMemo(
+    () => (enroll.isSuccess ? { action: enroll.variables.action, ...enroll.data } : null),
+    [enroll.isSuccess, enroll.variables, enroll.data],
+  );
 
   // Bring the outcome into view — the form can push the results below the
   // fold, so on completion scroll straight to the summary banner.
@@ -56,34 +74,21 @@ const EnrollPage = () => {
     }
   }, [results]);
 
-  const run = async (action) => {
-    setSubmitting(true);
-    setError('');
-    setFieldErrors({});
-    setResults(null);
-    try {
-      const data = await updateEnrollments(action, {
+  const run = (action) => {
+    enroll.mutate({
+      action,
+      payload: {
         course_id: courseId,
         identifiers,
         email_students: emailStudents,
         auto_enroll: autoEnroll,
         reason,
-      });
-      setResults({ action, ...data });
-    } catch (err) {
-      const body = err?.response?.data || {};
-      if (body.course_id || body.identifiers) {
-        setFieldErrors({
-          courseId: [].concat(body.course_id || []).join(' '),
-          identifiers: [].concat(body.identifiers || []).join(' '),
-        });
-      } else {
-        setError('Something went wrong. Please try again.');
-      }
-    } finally {
-      setSubmitting(false);
-      closeUnenroll();
-    }
+      },
+    }, {
+      // The confirm dialog closed in the old handler's `finally`, so it has
+      // to close on failure too.
+      onSettled: () => closeUnenroll(),
+    });
   };
 
   const canSubmit = courseId.trim() && identifiers.length > 0 && !submitting;

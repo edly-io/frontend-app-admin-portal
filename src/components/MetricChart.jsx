@@ -2,8 +2,9 @@
  * MetricChart — the ONLY file that imports from 'recharts'. Other components
  * import this wrapper; never recharts directly.
  *
- * Colors are resolved from Paragon CSS custom properties at runtime so a brand
- * change re-themes charts without a rebuild. Animation is disabled when the
+ * Most colors are resolved from Paragon CSS custom properties at runtime so a
+ * brand change re-themes charts without a rebuild (see getChartColors for the
+ * one exception). Animation is disabled when the
  * viewer prefers reduced motion, and an sr-only <table> mirrors the data for
  * screen readers.
  *
@@ -36,7 +37,12 @@ export const resolveParagonToken = (token, fallback) => {
   return value || fallback;
 };
 
-/** Brand-aligned chart palette sourced from Paragon tokens. */
+/**
+ * Brand-aligned chart palette. `primary-500` is skipped deliberately: some
+ * themes (e.g. tutor-indigo) set it to a near-black brand color that's
+ * correct for buttons/nav but illegible as a chart series, so series 1 uses
+ * a fixed chart-safe green instead of resolving it from Paragon.
+ */
 export const getChartColors = () => [
   '#0D7D4D',
   resolveParagonToken('--pgn-color-info-500', '#0070D2'),

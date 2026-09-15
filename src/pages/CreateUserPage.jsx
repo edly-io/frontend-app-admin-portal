@@ -4,50 +4,44 @@ import {
   Container, Form, Button, Alert, ActionRow,
 } from '@openedx/paragon';
 
-import { createUser } from '../data/api';
+import { useCreateUser } from '../data/hooks/users';
 
 const FIELDS = ['username', 'email', 'name'];
 
 const CreateUserPage = () => {
   const navigate = useNavigate();
+  const createUser = useCreateUser();
   const [values, setValues] = useState({ username: '', email: '', name: '' });
-  const [fieldErrors, setFieldErrors] = useState({});
-  const [nonFieldError, setNonFieldError] = useState('');
-  const [result, setResult] = useState(null);
-  const [submitting, setSubmitting] = useState(false);
 
   const setField = (key) => (e) => setValues((v) => ({ ...v, [key]: e.target.value }));
 
-  const onSubmit = async (e) => {
+  const onSubmit = (e) => {
     e.preventDefault();
-    setSubmitting(true);
-    setFieldErrors({});
-    setNonFieldError('');
-    try {
-      setResult(await createUser(values));
-    } catch (err) {
-      const status = err?.response?.status;
-      const body = err?.response?.data || {};
-      if (status === 409 || status === 400) {
-        // DRF field-keyed errors: { field: [messages] }
-        const fe = {};
-        Object.entries(body).forEach(([k, msgs]) => {
-          if (FIELDS.includes(k)) { fe[k] = Array.isArray(msgs) ? msgs.join(' ') : String(msgs); }
-        });
-        setFieldErrors(fe);
-        if (body.non_field_errors) {
-          setNonFieldError([].concat(body.non_field_errors).join(' '));
-        } else if (Object.keys(fe).length === 0) {
-          setNonFieldError('Could not create the account. Please check the fields and try again.');
-        }
-      } else {
-        setNonFieldError('Something went wrong. Please try again.');
-      }
-    } finally {
-      setSubmitting(false);
-    }
+    createUser.mutate(values);
   };
 
+  // A new mutate clears both of these on its own, which is what the explicit
+  // reset at the top of the old handler did.
+  const err = createUser.error;
+  const status = err?.response?.status;
+  const body = err?.response?.data || {};
+  const fieldErrors = {};
+  let nonFieldError = '';
+  if (err && (status === 409 || status === 400)) {
+    // DRF field-keyed errors: { field: [messages] }
+    Object.entries(body).forEach(([k, msgs]) => {
+      if (FIELDS.includes(k)) { fieldErrors[k] = Array.isArray(msgs) ? msgs.join(' ') : String(msgs); }
+    });
+    if (body.non_field_errors) {
+      nonFieldError = [].concat(body.non_field_errors).join(' ');
+    } else if (Object.keys(fieldErrors).length === 0) {
+      nonFieldError = 'Could not create the account. Please check the fields and try again.';
+    }
+  } else if (err) {
+    nonFieldError = 'Something went wrong. Please try again.';
+  }
+
+  const result = createUser.data;
   if (result) {
     return (
       <Container size="md" className="py-4">
@@ -65,7 +59,10 @@ const CreateUserPage = () => {
           )}
         </Alert>
         <ActionRow>
-          <Button variant="tertiary" onClick={() => { setResult(null); setValues({ username: '', email: '', name: '' }); }}>
+          <Button
+            variant="tertiary"
+            onClick={() => { createUser.reset(); setValues({ username: '', email: '', name: '' }); }}
+          >
             Create another
           </Button>
           <Button variant="primary" onClick={() => navigate('/')}>Back to users</Button>
@@ -99,8 +96,8 @@ const CreateUserPage = () => {
         </Form.Group>
         <ActionRow>
           <Button as={Link} to="/" variant="tertiary">Cancel</Button>
-          <Button type="submit" variant="primary" disabled={submitting}>
-            {submitting ? 'Creating…' : 'Create user'}
+          <Button type="submit" variant="primary" disabled={createUser.isPending}>
+            {createUser.isPending ? 'Creating…' : 'Create user'}
           </Button>
         </ActionRow>
       </Form>

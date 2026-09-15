@@ -1,6 +1,4 @@
-import React, {
-  useCallback, useEffect, useMemo, useRef, useState,
-} from 'react';
+import React, { useMemo, useState } from 'react';
 import PropTypes from 'prop-types';
 import { Link, useParams } from 'react-router-dom';
 import {
@@ -10,8 +8,8 @@ import {
 import { InfoOutline } from '@openedx/paragon/icons';
 
 import {
-  triggerCourseReport, getCourseReportDownloads, getCourseCertificates,
-} from '../data/api';
+  useCourseCertificates, useCourseReportDownloads, useTriggerCourseReport,
+} from '../data/hooks/courseReports';
 import { formatDateTime } from '../utils/formatDate';
 
 // Report types the backend accepts, with display labels (mirrors REPORT_LABELS)
@@ -74,8 +72,6 @@ const REPORT_TYPES = [
   },
 ];
 
-const RUNNING_STATES = new Set(['QUEUING', 'IN_PROGRESS']);
-
 const STATE_VARIANTS = {
   SUCCESS: 'success',
   FAILURE: 'danger',
@@ -113,75 +109,62 @@ CreatedCell.propTypes = {
 const CourseReportsPage = () => {
   const { courseId } = useParams();
 
-  const [downloads, setDownloads] = useState([]);
-  const [certificates, setCertificates] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
   const [toast, setToast] = useState('');
-  const [triggeringSlug, setTriggeringSlug] = useState(null);
-  const timerRef = useRef(null);
+  // Dismissal is per query (keyed by the same name used in `loadErrors`
+  // below), not one shared value — otherwise dismissing (or just leaving
+  // active) one query's failure hides a different query's failure forever,
+  // since a single shared timestamp can't tell them apart.
+  const [dismissedLoadErrorAt, setDismissedLoadErrorAt] = useState({});
 
-  const fetchDownloads = useCallback(async () => {
-    const data = await getCourseReportDownloads(courseId);
-    setDownloads(data.results || []);
-    return data.results || [];
-  }, [courseId]);
+  const downloadsQuery = useCourseReportDownloads(courseId);
+  const certificatesQuery = useCourseCertificates(courseId);
+  const trigger = useTriggerCourseReport(courseId, {
+    onQueued: ({ label }) => setToast(`${label} queued.`),
+  });
 
-  // Initial load: downloads + certificates.
-  useEffect(() => {
-    let active = true;
-    setLoading(true);
-    Promise.all([getCourseReportDownloads(courseId), getCourseCertificates(courseId)])
-      .then(([dl, certs]) => {
-        if (!active) { return; }
-        setDownloads(dl.results || []);
-        setCertificates(certs.results || []);
-        setError('');
-      })
-      .catch((err) => {
-        if (!active) { return; }
-        setError(err?.customAttributes?.httpErrorStatus === 403
-          ? 'You do not have EDL admin access.'
-          : 'Could not load course reports.');
-      })
-      .finally(() => active && setLoading(false));
-    return () => { active = false; };
-  }, [courseId]);
+  const downloads = downloadsQuery.data || [];
+  const certificates = certificatesQuery.data || [];
+  const loading = downloadsQuery.isPending || certificatesQuery.isPending;
 
-  // Poll every 10s while any task is still running; stop when nothing is.
-  useEffect(() => {
-    const anyRunning = downloads.some((row) => RUNNING_STATES.has(row.state));
-    if (!anyRunning) {
-      if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
-      return undefined;
+  // Only a failed FIRST load is surfaced. The old code swallowed poll errors
+  // (`.catch(() => {})`), so a lost background refresh must stay silent while
+  // the table it would have updated is still on screen.
+  const loadErrors = [
+    { key: 'downloads', query: downloadsQuery },
+    { key: 'certificates', query: certificatesQuery },
+  ].filter(({ query }) => query.isError && query.data === undefined);
+  // Among currently-failing, not-yet-dismissed-for-their-own-key queries,
+  // surface whichever failed most recently — not just whichever happens to
+  // be first in the array — so a second query failing later isn't masked by
+  // an earlier one that's still erroring.
+  const failedLoad = loadErrors
+    .filter(({ key, query }) => query.errorUpdatedAt > (dismissedLoadErrorAt[key] ?? 0))
+    .sort((a, b) => b.query.errorUpdatedAt - a.query.errorUpdatedAt)[0];
+  const loadError = failedLoad?.query.error ?? null;
+
+  const dismissLoadError = () => {
+    if (failedLoad) {
+      setDismissedLoadErrorAt((prev) => ({ ...prev, [failedLoad.key]: failedLoad.query.errorUpdatedAt }));
     }
-    if (!timerRef.current) {
-      timerRef.current = setInterval(() => { fetchDownloads().catch(() => {}); }, 10000);
-    }
-    return () => {
-      if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
-    };
-  }, [downloads, fetchDownloads]);
+  };
 
-  const onTrigger = async (slug, label) => {
-    if (triggeringSlug) { return; } // one in flight at a time; the menu is disabled anyway
-    setError('');
-    setTriggeringSlug(slug);
-    try {
-      await triggerCourseReport(courseId, slug);
-      setToast(`${label} queued.`);
-      await fetchDownloads();
-    } catch (err) {
-      const status = err?.customAttributes?.httpErrorStatus;
-      const detail = err?.response?.data?.detail;
-      if (status === 400 && detail) {
-        setError(detail);
-      } else {
-        setError('Could not queue the report. Please try again.');
-      }
-    } finally {
-      setTriggeringSlug(null);
-    }
+  let error = '';
+  if (trigger.error) {
+    const status = trigger.error?.customAttributes?.httpErrorStatus;
+    const detail = trigger.error?.response?.data?.detail;
+    error = status === 400 && detail ? detail : 'Could not queue the report. Please try again.';
+  } else if (loadError) {
+    error = loadError.customAttributes?.httpErrorStatus === 403
+      ? 'You do not have EDL admin access.'
+      : 'Could not load course reports.';
+  }
+
+  const onTrigger = (slug, label) => {
+    if (trigger.isPending) { return; } // one in flight at a time; the menu is disabled anyway
+    // The old handler cleared the whole alert before firing. A new mutate
+    // clears its own error; the load error has to be dismissed explicitly.
+    dismissLoadError();
+    trigger.mutate({ slug, label });
   };
 
   const downloadColumns = useMemo(() => [
@@ -210,15 +193,23 @@ const CourseReportsPage = () => {
         <span style={{ fontFamily: 'monospace' }}>{courseId}</span>
       </p>
 
-      {error && <Alert variant="danger" dismissible onClose={() => setError('')}>{error}</Alert>}
+      {error && (
+        <Alert
+          variant="danger"
+          dismissible
+          onClose={() => { trigger.reset(); dismissLoadError(); }}
+        >
+          {error}
+        </Alert>
+      )}
 
       <Card className="mb-4">
         <Card.Body>
           <div className="d-flex justify-content-between align-items-center">
             <h2 className="h5 mb-0 pl-2">Generate a report</h2>
             <Dropdown>
-              <Dropdown.Toggle variant="primary" id="report-type-menu" disabled={!!triggeringSlug}>
-                {triggeringSlug ? (
+              <Dropdown.Toggle variant="primary" id="report-type-menu" disabled={trigger.isPending}>
+                {trigger.isPending ? (
                   <>
                     <Spinner animation="border" size="sm" screenReaderText="Queuing" className="mr-1" />
                     Queuing…
@@ -229,7 +220,7 @@ const CourseReportsPage = () => {
                 {REPORT_TYPES.map((r) => (
                   <Dropdown.Item
                     key={r.slug}
-                    disabled={!!triggeringSlug}
+                    disabled={trigger.isPending}
                     onClick={() => onTrigger(r.slug, r.label)}
                     className="d-flex align-items-center justify-content-between"
                   >

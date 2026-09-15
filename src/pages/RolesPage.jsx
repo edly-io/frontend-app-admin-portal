@@ -1,10 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Container, Form, Button, Alert, ActionRow, Card,
 } from '@openedx/paragon';
 
-import { getRoles, changeRole } from '../data/api';
+import { useRoles, useChangeRole } from '../data/hooks/roles';
 import CourseIdField from '../components/CourseIdField';
 
 // Role slugs are the wire values (submitted as-is); this is display-only.
@@ -16,51 +16,50 @@ const ROLE_LABELS = {
 const humanizeRole = (role) => ROLE_LABELS[role] || role;
 
 const RolesPage = () => {
-  const [roles, setRoles] = useState([]);
+  const rolesQuery = useRoles();
+  const changeRole = useChangeRole();
+
   const [courseId, setCourseId] = useState('');
   const [identifier, setIdentifier] = useState('');
-  const [role, setRole] = useState('');
+  const [roleOverride, setRoleOverride] = useState('');
   const [action, setAction] = useState('allow');
+  const [dismissedRolesErrorAt, setDismissedRolesErrorAt] = useState(0);
 
-  const [fieldErrors, setFieldErrors] = useState({});
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
-  const [submitting, setSubmitting] = useState(false);
+  const roles = rolesQuery.data?.roles || [];
+  // Derived, not synced: the select defaults to the first role the catalog
+  // returns until the user picks one.
+  const role = roleOverride || roles[0]?.role || '';
 
-  useEffect(() => {
-    getRoles()
-      .then((data) => {
-        setRoles(data.roles || []);
-        if (data.roles?.length) { setRole(data.roles[0].role); }
-      })
-      .catch(() => setError('Could not load the roles catalog.'));
-  }, []);
+  // DRF answers a bad grant with field-keyed errors; anything else is a
+  // generic failure banner.
+  const body = changeRole.error?.response?.data || {};
+  const hasFieldErrors = !!(body.course_id || body.identifier || body.role);
+  const fieldErrors = hasFieldErrors ? {
+    courseId: [].concat(body.course_id || []).join(' '),
+    identifier: [].concat(body.identifier || []).join(' '),
+    role: [].concat(body.role || []).join(' '),
+  } : {};
 
-  const onSubmit = async (e) => {
+  let error = '';
+  if (changeRole.error && !hasFieldErrors) {
+    error = 'Something went wrong. Please try again.';
+  } else if (rolesQuery.error && rolesQuery.errorUpdatedAt > dismissedRolesErrorAt) {
+    error = 'Could not load the roles catalog.';
+  }
+
+  const granted = changeRole.isSuccess ? changeRole.data : null;
+  const success = granted
+    ? `${granted.action === 'allow' ? 'Granted' : 'Revoked'} “${granted.role}” for ${granted.username}.`
+    : '';
+
+  const onSubmit = (e) => {
     e.preventDefault();
-    setSubmitting(true);
-    setError('');
-    setSuccess('');
-    setFieldErrors({});
-    try {
-      const data = await changeRole({
-        course_id: courseId, identifier, role, action,
-      });
-      setSuccess(`${data.action === 'allow' ? 'Granted' : 'Revoked'} “${data.role}” for ${data.username}.`);
-    } catch (err) {
-      const body = err?.response?.data || {};
-      if (body.course_id || body.identifier || body.role) {
-        setFieldErrors({
-          courseId: [].concat(body.course_id || []).join(' '),
-          identifier: [].concat(body.identifier || []).join(' '),
-          role: [].concat(body.role || []).join(' '),
-        });
-      } else {
-        setError('Something went wrong. Please try again.');
-      }
-    } finally {
-      setSubmitting(false);
-    }
+    // The old handler cleared every banner before submitting. A new mutate
+    // clears its own error and success; the catalog error is dismissed here.
+    setDismissedRolesErrorAt(rolesQuery.errorUpdatedAt);
+    changeRole.mutate({
+      course_id: courseId, identifier, role, action,
+    });
   };
 
   const selectedRole = roles.find((r) => r.role === role);
@@ -74,7 +73,11 @@ const RolesPage = () => {
       </p>
 
       {error && <Alert variant="danger">{error}</Alert>}
-      {success && <Alert variant="success" dismissible onClose={() => setSuccess('')}>{success}</Alert>}
+      {success && (
+        <Alert variant="success" dismissible onClose={() => changeRole.reset()}>
+          {success}
+        </Alert>
+      )}
 
       <Card className="mb-4">
         <Card.Section title="Grantable roles">
@@ -105,7 +108,7 @@ const RolesPage = () => {
         </Form.Group>
         <Form.Group>
           <Form.Label>Role</Form.Label>
-          <Form.Control as="select" value={role} onChange={(e) => setRole(e.target.value)}>
+          <Form.Control as="select" value={role} onChange={(e) => setRoleOverride(e.target.value)}>
             {roles.map((r) => <option key={r.role} value={r.role}>{humanizeRole(r.role)}</option>)}
           </Form.Control>
           {selectedRole && <Form.Text>{selectedRole.description}</Form.Text>}
@@ -121,9 +124,9 @@ const RolesPage = () => {
           <Button
             type="submit"
             variant="primary"
-            disabled={submitting || !courseId.trim() || !identifier.trim() || !role}
+            disabled={changeRole.isPending || !courseId.trim() || !identifier.trim() || !role}
           >
-            {submitting ? 'Working…' : 'Apply'}
+            {changeRole.isPending ? 'Working…' : 'Apply'}
           </Button>
         </ActionRow>
       </Form>
