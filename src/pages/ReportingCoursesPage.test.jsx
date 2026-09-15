@@ -5,6 +5,7 @@ import {
 
 import ReportingCoursesPage from './ReportingCoursesPage';
 import { getCourseReports } from '../data/api';
+import { formatDate } from '../utils/formatDate';
 
 jest.mock('../data/api', () => ({
   getCourseReports: jest.fn(),
@@ -55,7 +56,7 @@ describe('ReportingCoursesPage', () => {
     expect(within(table).getByText('Key')).toBeInTheDocument();
     expect(within(table).getByText('course-v1:Org+A+2026')).toBeInTheDocument();
     expect(within(table).getByText('Creation Date')).toBeInTheDocument();
-    expect(within(table).getByText(new Date('2026-01-15T09:00:00+00:00').toLocaleDateString())).toBeInTheDocument();
+    expect(within(table).getByText(formatDate('2026-01-15T09:00:00+00:00'))).toBeInTheDocument();
     expect(within(table).getByText('—')).toBeInTheDocument();
   });
 

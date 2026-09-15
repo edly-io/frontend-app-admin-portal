@@ -5,25 +5,73 @@ import PropTypes from 'prop-types';
 import { Link, useParams } from 'react-router-dom';
 import {
   Container, Card, Dropdown, DataTable, Alert, Spinner, Badge, Toast, Hyperlink,
+  OverlayTrigger, Tooltip, Icon,
 } from '@openedx/paragon';
+import { InfoOutline } from '@openedx/paragon/icons';
 
 import {
   triggerCourseReport, getCourseReportDownloads, getCourseCertificates,
 } from '../data/api';
+import { formatDateTime } from '../utils/formatDate';
 
-// Report types the backend accepts, with display labels (mirrors REPORT_LABELS).
+// Report types the backend accepts, with display labels (mirrors REPORT_LABELS)
+// and a short description of what each report contains.
 const REPORT_TYPES = [
-  { slug: 'grade_csv', label: 'Grade Report' },
-  { slug: 'problem_grade', label: 'Problem Grade Report' },
-  { slug: 'profile_info', label: 'Profile Information' },
-  { slug: 'may_enroll', label: 'Learners Who Can Enroll' },
-  { slug: 'inactive_learner', label: 'Learners, Account Not Activated' },
-  { slug: 'survey', label: 'Survey Results' },
-  { slug: 'proctored_exam', label: 'Proctored Exam Results' },
-  { slug: 'ora_data', label: 'ORA Data Report' },
-  { slug: 'ora_summary', label: 'ORA Summary Report' },
-  { slug: 'ora_submission_archive', label: 'ORA Submission Files Archive' },
-  { slug: 'anon_ids', label: 'Student Anonymized IDs' },
+  {
+    slug: 'grade_csv',
+    label: 'Grade Report',
+    description: 'Generates a CSV grade report for all currently enrolled students.',
+  },
+  {
+    slug: 'problem_grade',
+    label: 'Problem Grade Report',
+    description: 'Generates a CSV of student answers to a selected problem, section, or chapter (limited to 5,000 responses).',
+  },
+  {
+    slug: 'profile_info',
+    label: 'Profile Information',
+    description: 'Generates a CSV of all enrolled students with profile info such as email and username.',
+  },
+  {
+    slug: 'may_enroll',
+    label: 'Learners Who Can Enroll',
+    description: "Generates a CSV of learners who can enroll in the course but haven't yet done so.",
+  },
+  {
+    slug: 'inactive_learner',
+    label: 'Learners, Account Not Activated',
+    description: "Generates a CSV of learners who are enrolled but haven't activated their account.",
+  },
+  {
+    slug: 'survey',
+    label: 'Survey Results',
+    description: 'Generates a CSV of survey results submitted by learners.',
+  },
+  {
+    slug: 'proctored_exam',
+    label: 'Proctored Exam Results',
+    description: 'Generates a CSV of proctored exam results for the course.',
+  },
+  {
+    slug: 'ora_data',
+    label: 'ORA Data Report',
+    description: 'Generates a CSV of open response assessment (ORA) data for the course.',
+  },
+  {
+    slug: 'ora_summary',
+    label: 'ORA Summary Report',
+    description: 'Generates a CSV summary of open response assessment (ORA) results.',
+  },
+  {
+    slug: 'ora_submission_archive',
+    label: 'ORA Submission Files Archive',
+    description: 'Generates a ZIP file containing all ORA submission texts and attachments.',
+  },
+  {
+    slug: 'anon_ids',
+    label: 'Student Anonymized IDs',
+    description: 'Downloads a CSV of anonymized student IDs.',
+  },
 ];
 
 const RUNNING_STATES = new Set(['QUEUING', 'IN_PROGRESS']);
@@ -56,7 +104,7 @@ const DownloadCell = ({ row }) => {
 DownloadCell.propTypes = { row: downloadRowShape };
 
 const CreatedCell = ({ row }) => (
-  <span>{row.original.created ? new Date(row.original.created).toLocaleString() : '—'}</span>
+  <span>{row.original.created ? formatDateTime(row.original.created) : '—'}</span>
 );
 CreatedCell.propTypes = {
   row: PropTypes.shape({ original: PropTypes.shape({ created: PropTypes.string }) }).isRequired,
@@ -158,14 +206,16 @@ const CourseReportsPage = () => {
         <Link to="/reporting/courses">&larr; All courses</Link>
       </div>
       <h1 className="mb-1">Course reports</h1>
-      <p className="text-muted"><code>{courseId}</code></p>
+      <p className="text-muted">
+        <span style={{ fontFamily: 'monospace' }}>{courseId}</span>
+      </p>
 
       {error && <Alert variant="danger" dismissible onClose={() => setError('')}>{error}</Alert>}
 
       <Card className="mb-4">
         <Card.Body>
           <div className="d-flex justify-content-between align-items-center">
-            <h2 className="h5 mb-0">Generate a report</h2>
+            <h2 className="h5 mb-0 pl-2">Generate a report</h2>
             <Dropdown>
               <Dropdown.Toggle variant="primary" id="report-type-menu" disabled={!!triggeringSlug}>
                 {triggeringSlug ? (
@@ -181,8 +231,20 @@ const CourseReportsPage = () => {
                     key={r.slug}
                     disabled={!!triggeringSlug}
                     onClick={() => onTrigger(r.slug, r.label)}
+                    className="d-flex align-items-center justify-content-between"
                   >
-                    {r.label}
+                    <span>{r.label}</span>
+                    <OverlayTrigger
+                      placement="right"
+                      overlay={<Tooltip id={`report-tooltip-${r.slug}`}>{r.description}</Tooltip>}
+                    >
+                      <span
+                        role="presentation"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <Icon src={InfoOutline} size="xs" className="ml-2 text-muted" />
+                      </span>
+                    </OverlayTrigger>
                   </Dropdown.Item>
                 ))}
               </Dropdown.Menu>

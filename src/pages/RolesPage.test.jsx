@@ -4,9 +4,11 @@ import {
 } from '../test-utils';
 
 import RolesPage from './RolesPage';
-import { getRoles, changeRole } from '../data/api';
+import { getRoles, changeRole, getCourseReports } from '../data/api';
 
-jest.mock('../data/api', () => ({ getRoles: jest.fn(), changeRole: jest.fn() }));
+jest.mock('../data/api', () => ({
+  getRoles: jest.fn(), changeRole: jest.fn(), getCourseReports: jest.fn(),
+}));
 
 const ROLES = {
   roles: [
@@ -21,6 +23,7 @@ const renderPage = () => renderWithProviders(<RolesPage />);
 beforeEach(() => {
   jest.clearAllMocks();
   getRoles.mockResolvedValue(ROLES);
+  getCourseReports.mockResolvedValue({ results: [] });
   changeRole.mockResolvedValue({ username: 'bob', role: 'instructor', action: 'allow' });
 });
 

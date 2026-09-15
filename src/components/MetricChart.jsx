@@ -38,7 +38,7 @@ export const resolveParagonToken = (token, fallback) => {
 
 /** Brand-aligned chart palette sourced from Paragon tokens. */
 export const getChartColors = () => [
-  resolveParagonToken('--pgn-color-primary-500', '#0D7D4D'),
+  '#0D7D4D',
   resolveParagonToken('--pgn-color-info-500', '#0070D2'),
   resolveParagonToken('--pgn-color-warning-500', '#FFB81C'),
   resolveParagonToken('--pgn-color-danger-500', '#C00000'),

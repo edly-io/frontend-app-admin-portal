@@ -29,7 +29,7 @@ describe('App gate (EDL-12)', () => {
     getMe.mockResolvedValue({ username: 'admin', is_edl_admin: true });
     renderApp();
     expect(await screen.findByText('Enrollment')).toBeInTheDocument();
-    expect(screen.getByText('Staff & roles')).toBeInTheDocument();
+    expect(screen.getByText('Staff & Roles')).toBeInTheDocument();
   });
 
   it('shows a neutral 404 (not the portal) on a 403 from me', async () => {

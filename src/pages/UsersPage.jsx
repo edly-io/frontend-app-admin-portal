@@ -10,6 +10,7 @@ import {
 
 import { getUsers, setUserActive } from '../data/api';
 import StatusBadge from '../components/StatusBadge';
+import useDebouncedEffect from '../hooks/useDebouncedEffect';
 
 const PAGE_SIZE = 25;
 
@@ -89,10 +90,7 @@ const UsersPage = () => {
     }
   }, [search, status, page]);
 
-  useEffect(() => {
-    const handle = setTimeout(fetchUsers, 300); // debounce
-    return () => clearTimeout(handle);
-  }, [fetchUsers]);
+  useDebouncedEffect(fetchUsers, [fetchUsers]);
 
   // Reset to page 1 whenever the filters change.
   useEffect(() => { setPage(1); }, [search, status]);
