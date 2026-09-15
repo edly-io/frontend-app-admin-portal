@@ -8,6 +8,7 @@ import {
 } from '@openedx/paragon';
 
 import { getCourseReports } from '../data/api';
+import { formatDate } from '../utils/formatDate';
 
 const PAGE_SIZE = 25;
 
@@ -47,7 +48,7 @@ const StateCell = ({ row }) => {
 StateCell.propTypes = { row: rowShape };
 
 const CreatedCell = ({ row }) => (
-  <span>{row.original.created ? new Date(row.original.created).toLocaleDateString() : '—'}</span>
+  <span>{row.original.created ? formatDate(row.original.created) : '—'}</span>
 );
 CreatedCell.propTypes = { row: rowShape };
 

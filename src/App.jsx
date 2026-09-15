@@ -1,6 +1,6 @@
 import React, { useContext, useEffect, useState } from 'react';
 import {
-  Routes, Route, NavLink, Link,
+  Routes, Route, NavLink,
 } from 'react-router-dom';
 import { getConfig } from '@edx/frontend-platform';
 import { AppContext } from '@edx/frontend-platform/react';
@@ -25,12 +25,14 @@ const Header = () => {
   return (
     <Navbar expand="lg" className="border-bottom mb-2" bg="white">
       <Container size="xl">
-        <Navbar.Brand as={Link} to="/">{config.SITE_NAME || 'Admin Portal'}</Navbar.Brand>
+        <Navbar.Brand href={config.LMS_BASE_URL} target="_blank" rel="noopener noreferrer">
+          {config.SITE_NAME || 'Admin Portal'}
+        </Navbar.Brand>
         <Nav className="mr-auto">
           <Nav.Link as={NavLink} to="/" end>Users</Nav.Link>
           <Nav.Link as={NavLink} to="/enroll">Enrollment</Nav.Link>
-          <Nav.Link as={NavLink} to="/staff">Staff &amp; roles</Nav.Link>
-          <Nav.Link as={NavLink} to="/reporting">Reporting</Nav.Link>
+          <Nav.Link as={NavLink} to="/staff">Staff &amp; Roles</Nav.Link>
+          <Nav.Link as={NavLink} to="/reporting">Reports</Nav.Link>
         </Nav>
         {authenticatedUser && (
           <Dropdown>

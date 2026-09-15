@@ -1,5 +1,5 @@
 import React, {
-  useCallback, useEffect, useRef, useState,
+  useEffect, useRef, useState,
 } from 'react';
 import PropTypes from 'prop-types';
 import {
@@ -10,6 +10,7 @@ import { Refresh } from '@openedx/paragon/icons';
 import { getReportingSummary, getReportingTrends, getReportingBreakdowns } from '../data/api';
 import KpiCard from '../components/KpiCard';
 import MetricChart from '../components/MetricChart';
+import { formatDateTime } from '../utils/formatDate';
 
 const fmt = (value) => (value === null || value === undefined ? '—' : Number(value).toLocaleString());
 
@@ -47,21 +48,16 @@ const ReportingDashboardPage = () => {
   const [error, setError] = useState(null);
   const [months, setMonths] = useState(12);
   const mountedRef = useRef(true);
-  const hasLoadedOnceRef = useRef(false);
+  const isFirstMonthsRenderRef = useRef(true);
   useEffect(() => () => { mountedRef.current = false; }, []);
 
-  // The very first fetch shows the full-page spinner; every later one (the
-  // Refresh button, or picking a different trend window) is a soft reload
-  // that keeps the page visible and only flags the KPI cards as loading.
-  const load = useCallback((bypassCache = false) => {
-    const isFirstLoad = !hasLoadedOnceRef.current;
-    hasLoadedOnceRef.current = true;
-    const params = bypassCache ? { force_refresh: 1 } : {};
-    (isFirstLoad ? setLoading : setRefreshing)(true);
-    return Promise.all([
-      getReportingSummary(params),
-      getReportingTrends({ months, ...params }),
-      getReportingBreakdowns(params),
+  // Initial load: all three endpoints, full-page spinner.
+  useEffect(() => {
+    setLoading(true);
+    Promise.all([
+      getReportingSummary(),
+      getReportingTrends({ months }),
+      getReportingBreakdowns(),
     ])
       .then(([s, t, b]) => {
         if (!mountedRef.current) { return; }
@@ -71,13 +67,47 @@ const ReportingDashboardPage = () => {
         setError(null);
       })
       .catch((e) => mountedRef.current && setError(e))
-      .finally(() => {
-        if (!mountedRef.current) { return; }
-        (isFirstLoad ? setLoading : setRefreshing)(false);
-      });
-  }, [months]);
+      .finally(() => mountedRef.current && setLoading(false));
+    // Initial load only — the trend window is handled by its own effect below.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  useEffect(() => { load(); }, [load]);
+  // The Refresh button re-pulls all three endpoints with force_refresh, and
+  // flags the KPI cards (and itself) as loading while in flight.
+  const refresh = () => {
+    setRefreshing(true);
+    return Promise.all([
+      getReportingSummary({ force_refresh: 1 }),
+      getReportingTrends({ months, force_refresh: 1 }),
+      getReportingBreakdowns({ force_refresh: 1 }),
+    ])
+      .then(([s, t, b]) => {
+        if (!mountedRef.current) { return; }
+        setSummary(s);
+        setTrends(t);
+        setBreakdowns(b);
+        setError(null);
+      })
+      .catch((e) => mountedRef.current && setError(e))
+      .finally(() => mountedRef.current && setRefreshing(false));
+  };
+
+  // Picking a different trend window only affects the trend charts, so it
+  // refetches trends alone — summary/breakdowns (and the KPI cards' loading
+  // state) are untouched, and there's no full-page/KPI loader for it.
+  useEffect(() => {
+    if (isFirstMonthsRenderRef.current) {
+      isFirstMonthsRenderRef.current = false;
+      return;
+    }
+    getReportingTrends({ months })
+      .then((t) => {
+        if (!mountedRef.current) { return; }
+        setTrends(t);
+        setError(null);
+      })
+      .catch((e) => mountedRef.current && setError(e));
+  }, [months]);
 
   if (loading) {
     return (
@@ -118,30 +148,18 @@ const ReportingDashboardPage = () => {
       <div className="d-flex justify-content-between align-items-end flex-wrap mb-4" style={{ gap: '1rem' }}>
         {summary?.generated_at ? (
           <p className="text-muted small mb-0">
-            Data as of {new Date(summary.generated_at).toLocaleString()}
+            Data as of {formatDateTime(summary.generated_at)}
           </p>
         ) : <span />}
-        <div className="d-flex align-items-end" style={{ gap: '1rem' }}>
-          <Form.Group className="mb-0" controlId="trend-window-filter">
-            <Form.Label className="small text-muted mb-1">Trend window</Form.Label>
-            <Form.Control
-              as="select"
-              value={months}
-              onChange={(e) => setMonths(Number(e.target.value))}
-            >
-              {TREND_WINDOW_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-            </Form.Control>
-          </Form.Group>
-          <Button
-            variant="outline-primary"
-            size="sm"
-            iconBefore={Refresh}
-            disabled={refreshing}
-            onClick={() => load(true)}
-          >
-            {refreshing ? 'Refreshing…' : 'Refresh metrics'}
-          </Button>
-        </div>
+        <Button
+          variant="outline-primary"
+          size="sm"
+          iconBefore={Refresh}
+          disabled={refreshing}
+          onClick={refresh}
+        >
+          {refreshing ? 'Refreshing…' : 'Refresh metrics'}
+        </Button>
       </div>
 
       <Row className="mb-4">
@@ -166,6 +184,20 @@ const ReportingDashboardPage = () => {
           <KpiCard label="Active enrollments" value={fmt(summary?.active_enrollments)} isLoading={refreshing} />
         </Col>
       </Row>
+
+      <div className="d-flex justify-content-end mb-2">
+        <Form.Group className="mb-0" controlId="trend-window-filter">
+          <Form.Label className="small text-muted mb-1 mr-2">Trend window</Form.Label>
+          <Form.Control
+            as="select"
+            size="sm"
+            value={months}
+            onChange={(e) => setMonths(Number(e.target.value))}
+          >
+            {TREND_WINDOW_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </Form.Control>
+        </Form.Group>
+      </div>
 
       <Row className="mb-4">
         <Col xs={12}>

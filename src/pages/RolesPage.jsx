@@ -5,6 +5,15 @@ import {
 } from '@openedx/paragon';
 
 import { getRoles, changeRole } from '../data/api';
+import CourseIdField from '../components/CourseIdField';
+
+// Role slugs are the wire values (submitted as-is); this is display-only.
+const ROLE_LABELS = {
+  instructor: 'Instructor',
+  staff: 'Staff',
+  limited_staff: 'Limited Staff',
+};
+const humanizeRole = (role) => ROLE_LABELS[role] || role;
 
 const RolesPage = () => {
   const [roles, setRoles] = useState([]);
@@ -58,7 +67,7 @@ const RolesPage = () => {
 
   return (
     <Container size="lg" className="py-4">
-      <h1 className="mb-3">Staff &amp; roles</h1>
+      <h1 className="mb-3">Staff &amp; Roles</h1>
       <p className="text-muted">
         Assign course-scoped roles. Staff accounts are created with the same{' '}
         <Link to="/users/new">Create user</Link> form. Site Admin / Global Staff are not grantable here.
@@ -71,23 +80,20 @@ const RolesPage = () => {
         <Card.Section title="Grantable roles">
           <ul className="mb-0">
             {roles.map((r) => (
-              <li key={r.role}><strong>{r.role}</strong> — {r.description}</li>
+              <li key={r.role}><strong>{humanizeRole(r.role)}</strong>: {r.description}</li>
             ))}
           </ul>
         </Card.Section>
       </Card>
 
       <Form onSubmit={onSubmit}>
-        <Form.Group controlId="role-course-id">
-          <Form.Label>Course run ID</Form.Label>
-          <Form.Control
-            placeholder="course-v1:Org+Course+Run"
-            value={courseId}
-            onChange={(e) => setCourseId(e.target.value)}
-            isInvalid={!!fieldErrors.courseId}
-          />
-          {fieldErrors.courseId && <Form.Control.Feedback type="invalid">{fieldErrors.courseId}</Form.Control.Feedback>}
-        </Form.Group>
+        <CourseIdField
+          controlId="role-course-id"
+          value={courseId}
+          onChange={setCourseId}
+          isInvalid={!!fieldErrors.courseId}
+          feedback={fieldErrors.courseId}
+        />
         <Form.Group controlId="role-identifier">
           <Form.Label>User (email or username)</Form.Label>
           <Form.Control
@@ -100,7 +106,7 @@ const RolesPage = () => {
         <Form.Group>
           <Form.Label>Role</Form.Label>
           <Form.Control as="select" value={role} onChange={(e) => setRole(e.target.value)}>
-            {roles.map((r) => <option key={r.role} value={r.role}>{r.role}</option>)}
+            {roles.map((r) => <option key={r.role} value={r.role}>{humanizeRole(r.role)}</option>)}
           </Form.Control>
           {selectedRole && <Form.Text>{selectedRole.description}</Form.Text>}
         </Form.Group>

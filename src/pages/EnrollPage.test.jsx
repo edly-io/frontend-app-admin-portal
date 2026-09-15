@@ -4,9 +4,9 @@ import {
 } from '../test-utils';
 
 import EnrollPage from './EnrollPage';
-import { updateEnrollments } from '../data/api';
+import { updateEnrollments, getCourseReports } from '../data/api';
 
-jest.mock('../data/api', () => ({ updateEnrollments: jest.fn() }));
+jest.mock('../data/api', () => ({ updateEnrollments: jest.fn(), getCourseReports: jest.fn() }));
 
 const COURSE = 'course-v1:Org+Course+Run';
 
@@ -20,6 +20,7 @@ const fillForm = () => {
 
 beforeEach(() => {
   jest.clearAllMocks();
+  getCourseReports.mockResolvedValue({ results: [] });
   updateEnrollments.mockResolvedValue({
     action: 'enroll',
     results: [{ identifier: 'a@e.com', success: true }, { identifier: 'bob', success: true }],

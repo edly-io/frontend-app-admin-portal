@@ -9,7 +9,7 @@ const ReportingLayout = () => {
 
   return (
     <Container size="xl" className="py-4">
-      <h1 className="mb-3">Reporting</h1>
+      <h1 className="mb-3">Reports</h1>
       <Tabs
         id="reporting-tabs"
         activeKey={activeKey}

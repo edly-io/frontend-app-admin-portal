@@ -6,6 +6,7 @@ import {
 } from '@openedx/paragon';
 
 import { updateEnrollments } from '../data/api';
+import CourseIdField from '../components/CourseIdField';
 
 const parseIdentifiers = (raw) => raw
   .split(/[\n,]+/)
@@ -96,16 +97,13 @@ const EnrollPage = () => {
 
       {error && <Alert variant="danger">{error}</Alert>}
 
-      <Form.Group>
-        <Form.Label>Course run ID</Form.Label>
-        <Form.Control
-          placeholder="course-v1:Org+Course+Run"
-          value={courseId}
-          onChange={(e) => setCourseId(e.target.value)}
-          isInvalid={!!fieldErrors.courseId}
-        />
-        {fieldErrors.courseId && <Form.Control.Feedback type="invalid">{fieldErrors.courseId}</Form.Control.Feedback>}
-      </Form.Group>
+      <CourseIdField
+        controlId="enroll-course-id"
+        value={courseId}
+        onChange={setCourseId}
+        isInvalid={!!fieldErrors.courseId}
+        feedback={fieldErrors.courseId}
+      />
 
       <Form.Group>
         <Form.Label>Learners</Form.Label>
@@ -123,7 +121,7 @@ const EnrollPage = () => {
         )}
       </Form.Group>
 
-      <Form.Switch checked={emailStudents} onChange={(e) => setEmailStudents(e.target.checked)} className="mb-2">
+      <Form.Switch checked={emailStudents} onChange={(e) => setEmailStudents(e.target.checked)} className="mr-3">
         Send notification email
       </Form.Switch>
       <Form.Switch checked={autoEnroll} onChange={(e) => setAutoEnroll(e.target.checked)} className="mb-2">
