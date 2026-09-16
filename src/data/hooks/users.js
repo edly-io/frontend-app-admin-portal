@@ -3,10 +3,9 @@ import {
 } from '@tanstack/react-query';
 
 import { createUser, getUsers, setUserActive } from '../api';
+import { EMPTY_PAGE } from './emptyPage';
 import { keys } from './keys';
 import { useLastDefined } from './useLastDefined';
-
-const EMPTY_PAGE = { count: 0, results: [] };
 
 /**
  * One page of the user directory.
@@ -34,7 +33,11 @@ export const useUsers = ({
 
   return {
     data: useLastDefined(query.data, EMPTY_PAGE),
-    isFetching: query.isFetching,
+    isPending: query.isPending,
+    // A page or filter change refetches under the rows already on screen
+    // (keepPreviousData), so the caller flags it beside the filters instead of
+    // replacing the table with the full-page spinner.
+    isRefetching: query.isRefetching,
     error: query.error,
     // Timestamps, so the caller can tell which of a failed read and a failed
     // write happened last, and whether a successful read has landed since.

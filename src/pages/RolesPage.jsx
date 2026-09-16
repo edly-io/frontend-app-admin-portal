@@ -5,7 +5,9 @@ import {
 } from '@openedx/paragon';
 
 import { useRoles, useChangeRole } from '../data/hooks/roles';
+import { useDismissibleQueryError } from '../data/hooks/useDismissibleQueryError';
 import CourseIdField from '../components/CourseIdField';
+import { extractFieldErrors } from '../utils/extractFieldErrors';
 
 // Role slugs are the wire values (submitted as-is); this is display-only.
 const ROLE_LABELS = {
@@ -23,27 +25,23 @@ const RolesPage = () => {
   const [identifier, setIdentifier] = useState('');
   const [roleOverride, setRoleOverride] = useState('');
   const [action, setAction] = useState('allow');
-  const [dismissedRolesErrorAt, setDismissedRolesErrorAt] = useState(0);
+  const rolesErr = useDismissibleQueryError(rolesQuery);
 
   const roles = rolesQuery.data?.roles || [];
   // Derived, not synced: the select defaults to the first role the catalog
   // returns until the user picks one.
   const role = roleOverride || roles[0]?.role || '';
 
-  // DRF answers a bad grant with field-keyed errors; anything else is a
-  // generic failure banner.
-  const body = changeRole.error?.response?.data || {};
-  const hasFieldErrors = !!(body.course_id || body.identifier || body.role);
-  const fieldErrors = hasFieldErrors ? {
-    courseId: [].concat(body.course_id || []).join(' '),
-    identifier: [].concat(body.identifier || []).join(' '),
-    role: [].concat(body.role || []).join(' '),
-  } : {};
+  const { hasFieldErrors, fieldErrors } = extractFieldErrors(changeRole.error, {
+    courseId: 'course_id',
+    identifier: 'identifier',
+    role: 'role',
+  });
 
   let error = '';
   if (changeRole.error && !hasFieldErrors) {
     error = 'Something went wrong. Please try again.';
-  } else if (rolesQuery.error && rolesQuery.errorUpdatedAt > dismissedRolesErrorAt) {
+  } else if (rolesErr.error) {
     error = 'Could not load the roles catalog.';
   }
 
@@ -56,7 +54,7 @@ const RolesPage = () => {
     e.preventDefault();
     // The old handler cleared every banner before submitting. A new mutate
     // clears its own error and success; the catalog error is dismissed here.
-    setDismissedRolesErrorAt(rolesQuery.errorUpdatedAt);
+    rolesErr.dismiss();
     changeRole.mutate({
       course_id: courseId, identifier, role, action,
     });

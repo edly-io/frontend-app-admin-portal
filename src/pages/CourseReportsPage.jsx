@@ -10,6 +10,7 @@ import { InfoOutline } from '@openedx/paragon/icons';
 import {
   useCourseCertificates, useCourseReportDownloads, useTriggerCourseReport,
 } from '../data/hooks/courseReports';
+import { useDismissibleQueryError } from '../data/hooks/useDismissibleQueryError';
 import { formatDateTime } from '../utils/formatDate';
 
 // Report types the backend accepts, with display labels (mirrors REPORT_LABELS)
@@ -110,17 +111,17 @@ const CourseReportsPage = () => {
   const { courseId } = useParams();
 
   const [toast, setToast] = useState('');
-  // Dismissal is per query (keyed by the same name used in `loadErrors`
-  // below), not one shared value — otherwise dismissing (or just leaving
-  // active) one query's failure hides a different query's failure forever,
-  // since a single shared timestamp can't tell them apart.
-  const [dismissedLoadErrorAt, setDismissedLoadErrorAt] = useState({});
 
   const downloadsQuery = useCourseReportDownloads(courseId);
   const certificatesQuery = useCourseCertificates(courseId);
   const trigger = useTriggerCourseReport(courseId, {
     onQueued: ({ label }) => setToast(`${label} queued.`),
   });
+  // One dismissal timestamp per query — otherwise dismissing (or just
+  // leaving active) one query's failure would hide a different query's
+  // failure forever, since a single shared timestamp can't tell them apart.
+  const downloadsErr = useDismissibleQueryError(downloadsQuery);
+  const certificatesErr = useDismissibleQueryError(certificatesQuery);
 
   const downloads = downloadsQuery.data || [];
   const certificates = certificatesQuery.data || [];
@@ -128,25 +129,19 @@ const CourseReportsPage = () => {
 
   // Only a failed FIRST load is surfaced. The old code swallowed poll errors
   // (`.catch(() => {})`), so a lost background refresh must stay silent while
-  // the table it would have updated is still on screen.
-  const loadErrors = [
-    { key: 'downloads', query: downloadsQuery },
-    { key: 'certificates', query: certificatesQuery },
-  ].filter(({ query }) => query.isError && query.data === undefined);
-  // Among currently-failing, not-yet-dismissed-for-their-own-key queries,
-  // surface whichever failed most recently — not just whichever happens to
-  // be first in the array — so a second query failing later isn't masked by
-  // an earlier one that's still erroring.
-  const failedLoad = loadErrors
-    .filter(({ key, query }) => query.errorUpdatedAt > (dismissedLoadErrorAt[key] ?? 0))
-    .sort((a, b) => b.query.errorUpdatedAt - a.query.errorUpdatedAt)[0];
-  const loadError = failedLoad?.query.error ?? null;
+  // the table it would have updated is still on screen. Among currently-
+  // failing, not-yet-dismissed queries, surface whichever failed most
+  // recently, so a second query failing later isn't masked by an earlier one
+  // that's still erroring.
+  const failedLoad = [
+    { query: downloadsQuery, err: downloadsErr },
+    { query: certificatesQuery, err: certificatesErr },
+  ]
+    .filter(({ query, err }) => err.error && query.data === undefined)
+    .sort((a, b) => b.err.errorUpdatedAt - a.err.errorUpdatedAt)[0];
+  const loadError = failedLoad?.err.error ?? null;
 
-  const dismissLoadError = () => {
-    if (failedLoad) {
-      setDismissedLoadErrorAt((prev) => ({ ...prev, [failedLoad.key]: failedLoad.query.errorUpdatedAt }));
-    }
-  };
+  const dismissLoadError = () => failedLoad?.err.dismiss();
 
   let error = '';
   if (trigger.error) {
@@ -197,7 +192,7 @@ const CourseReportsPage = () => {
         <Alert
           variant="danger"
           dismissible
-          onClose={() => { trigger.reset(); dismissLoadError(); }}
+          onClose={() => { if (trigger.error) { trigger.reset(); } else { dismissLoadError(); } }}
         >
           {error}
         </Alert>

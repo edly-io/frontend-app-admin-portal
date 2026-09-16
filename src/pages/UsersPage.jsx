@@ -8,6 +8,7 @@ import {
 
 import { useUsers, useSetUserActive } from '../data/hooks/users';
 import { useDebouncedValue } from '../data/hooks/useDebouncedValue';
+import { useDismissibleQueryError } from '../data/hooks/useDismissibleQueryError';
 import StatusBadge from '../components/StatusBadge';
 
 const PAGE_SIZE = 25;
@@ -67,7 +68,7 @@ const UsersPage = () => {
   const debouncedSearch = useDebouncedValue(search, SEARCH_DEBOUNCE_MS);
 
   const {
-    data, isFetching, error: queryError, errorUpdatedAt, dataUpdatedAt,
+    data, isPending, isRefetching, error: queryError, errorUpdatedAt, dataUpdatedAt,
   } = useUsers({
     search: debouncedSearch,
     status,
@@ -79,8 +80,8 @@ const UsersPage = () => {
     enabled: search === debouncedSearch,
   });
   const setActive = useSetUserActive();
+  const readErr = useDismissibleQueryError({ error: queryError, errorUpdatedAt });
 
-  const [dismissedReadErrorAt, setDismissedReadErrorAt] = useState(0);
   const [pending, setPending] = useState(null); // { user, activate }
   const [isConfirmOpen, openConfirm, closeConfirm] = useToggle(false);
   const [toast, setToast] = useState('');
@@ -93,12 +94,11 @@ const UsersPage = () => {
   const lastReadAt = Math.max(errorUpdatedAt || 0, dataUpdatedAt || 0);
   const writeSupersededByRead = lastReadAt > (setActive.submittedAt || 0);
   const showWriteError = setActive.isError && !writeSupersededByRead;
-  const showReadError = !showWriteError && queryError && errorUpdatedAt > dismissedReadErrorAt;
   let error = null;
   if (showWriteError) {
     error = setActive.error;
-  } else if (showReadError) {
-    error = queryError;
+  } else if (readErr.error) {
+    error = readErr.error;
   }
 
   const askConfirm = useCallback((user, activate) => {
@@ -145,7 +145,7 @@ const UsersPage = () => {
           variant="danger"
           dismissible
           onClose={() => {
-            if (showWriteError) { setActive.reset(); } else { setDismissedReadErrorAt(errorUpdatedAt); }
+            if (showWriteError) { setActive.reset(); } else { readErr.dismiss(); }
           }}
         >
           {error.customAttributes?.httpErrorStatus === 403
@@ -175,9 +175,14 @@ const UsersPage = () => {
             {STATUS_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
           </Form.Control>
         </Form.Group>
+        {/* The rows below stay up while a page or filter change reloads, so
+            the in-flight request is flagged here instead. */}
+        {isRefetching && (
+          <Spinner animation="border" size="sm" className="mb-2" screenReaderText="Updating users" />
+        )}
       </div>
 
-      {isFetching ? (
+      {isPending ? (
         <div className="d-flex justify-content-center py-5">
           <Spinner animation="border" screenReaderText="Loading users" />
         </div>

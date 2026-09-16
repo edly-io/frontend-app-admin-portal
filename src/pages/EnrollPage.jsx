@@ -9,6 +9,7 @@ import {
 
 import { useUpdateEnrollments } from '../data/hooks/enrollments';
 import CourseIdField from '../components/CourseIdField';
+import { extractFieldErrors } from '../utils/extractFieldErrors';
 
 const parseIdentifiers = (raw) => raw
   .split(/[\n,]+/)
@@ -48,14 +49,12 @@ const EnrollPage = () => {
   const identifiers = parseIdentifiers(identifiersRaw);
   const submitting = enroll.isPending;
 
-  // DRF answers a bad request with field-keyed errors; anything else is a
-  // generic failure banner. A new mutate clears both, as the old reset did.
-  const body = enroll.error?.response?.data || {};
-  const hasFieldErrors = !!(body.course_id || body.identifiers);
-  const fieldErrors = hasFieldErrors ? {
-    courseId: [].concat(body.course_id || []).join(' '),
-    identifiers: [].concat(body.identifiers || []).join(' '),
-  } : {};
+  // A new mutate clears both the field errors and the generic banner below,
+  // as the old reset did.
+  const { hasFieldErrors, fieldErrors } = extractFieldErrors(enroll.error, {
+    courseId: 'course_id',
+    identifiers: 'identifiers',
+  });
   const error = enroll.error && !hasFieldErrors ? 'Something went wrong. Please try again.' : '';
 
   // Memoised so the scroll-into-view effect below fires once per completed

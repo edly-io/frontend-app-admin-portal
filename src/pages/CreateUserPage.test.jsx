@@ -45,4 +45,20 @@ describe('CreateUserPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Create user' }));
     expect(await screen.findByText('An account with this username already exists.')).toBeInTheDocument();
   });
+
+  it('renders a non-field error from a rejected submission as the banner', async () => {
+    createUser.mockRejectedValue({ response: { status: 400, data: { non_field_errors: ['That email domain is not allowed.'] } } });
+    renderPage();
+    fillForm();
+    fireEvent.click(screen.getByRole('button', { name: 'Create user' }));
+    expect(await screen.findByText('That email domain is not allowed.')).toBeInTheDocument();
+  });
+
+  it('falls back to a generic banner when the failure is not a rejected submission', async () => {
+    createUser.mockRejectedValue({ response: { status: 500, data: { detail: 'boom' } } });
+    renderPage();
+    fillForm();
+    fireEvent.click(screen.getByRole('button', { name: 'Create user' }));
+    expect(await screen.findByText('Something went wrong. Please try again.')).toBeInTheDocument();
+  });
 });

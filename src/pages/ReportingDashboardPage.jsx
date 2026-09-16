@@ -40,12 +40,13 @@ ChartCard.propTypes = {
 const ReportingDashboardPage = () => {
   const [months, setMonths] = useState(12);
 
-  // The very first fetch shows the full-page spinner; every later one (the
-  // Refresh button, or picking a different trend window) is a soft reload
-  // that keeps the page visible and only flags the KPI cards as loading.
+  // The very first fetch shows the full-page spinner. After that the page
+  // stays up: Refresh flags itself and the KPI cards while it re-pulls all
+  // three endpoints, and a trend-window change quietly refetches the trend
+  // charts alone.
   const {
     summary, trends, breakdowns,
-    isLoading, isRefreshing, isSummaryFetching, hasAllData, error, refresh,
+    isLoading, isRefreshing, hasAllData, error, refresh,
   } = useReportingDashboard(months);
 
   if (isLoading) {
@@ -103,24 +104,24 @@ const ReportingDashboardPage = () => {
 
       <Row className="mb-4">
         <Col xs={6} md={4} lg className="mb-3 mb-lg-0">
-          <KpiCard label="Total learners" value={fmt(summary?.total_learners)} isLoading={isSummaryFetching} />
+          <KpiCard label="Total learners" value={fmt(summary?.total_learners)} isLoading={isRefreshing} />
         </Col>
         <Col xs={6} md={4} lg className="mb-3 mb-lg-0">
           <KpiCard
             label="New registrations"
             value={fmt(summary?.new_registrations_this_month)}
             delta={summary?.new_registrations_delta_pct ?? undefined}
-            isLoading={isSummaryFetching}
+            isLoading={isRefreshing}
           />
         </Col>
         <Col xs={6} md={4} lg className="mb-3 mb-lg-0">
-          <KpiCard label="Total courses" value={fmt(summary?.total_courses)} isLoading={isSummaryFetching} />
+          <KpiCard label="Total courses" value={fmt(summary?.total_courses)} isLoading={isRefreshing} />
         </Col>
         <Col xs={6} md={4} lg className="mb-3 mb-lg-0">
-          <KpiCard label="Running courses" value={fmt(summary?.running_courses)} isLoading={isSummaryFetching} />
+          <KpiCard label="Running courses" value={fmt(summary?.running_courses)} isLoading={isRefreshing} />
         </Col>
         <Col xs={6} md={4} lg>
-          <KpiCard label="Active enrollments" value={fmt(summary?.active_enrollments)} isLoading={isSummaryFetching} />
+          <KpiCard label="Active enrollments" value={fmt(summary?.active_enrollments)} isLoading={isRefreshing} />
         </Col>
       </Row>
 

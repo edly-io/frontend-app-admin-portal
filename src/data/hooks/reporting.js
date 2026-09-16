@@ -1,20 +1,27 @@
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 
 import {
   getCourseReports, getReportingBreakdowns, getReportingSummary, getReportingTrends,
 } from '../api';
+import { EMPTY_PAGE } from './emptyPage';
 import { keys } from './keys';
 import { useLastDefined } from './useLastDefined';
 
-const EMPTY_PAGE = { count: 0, results: [] };
-
 /**
- * The three dashboard endpoints, plus the two-tier loading state the page
- * has always had: a full-page spinner until everything has arrived once, and
- * a soft "refreshing" state for every fetch after that.
+ * The three dashboard endpoints, plus the two-tier loading state the page has
+ * always had: a full-page spinner until everything has arrived once, and a
+ * soft "refreshing" state for a Refresh after that. A trend-window change is
+ * neither — it re-pulls the trend charts with no loader of its own.
  */
 export const useReportingDashboard = (months) => {
+  // Owned by refresh() rather than derived from `isFetching` across the three
+  // queries: picking a different trend window refetches trends alone and was
+  // never a "refresh" (it has no loader of its own), so a derived flag would
+  // disable the Refresh button and blank the KPI cards for a fetch nobody
+  // asked for.
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
   // Refresh has to send force_refresh=1 WITHOUT changing the query key — it
   // asks for the same data, just recomputed upstream. So the flag is read
   // from a ref inside each queryFn at call time. `meta` cannot do this: it is
@@ -59,6 +66,7 @@ export const useReportingDashboard = (months) => {
   const breakdownsData = useLastDefined(breakdowns.data, undefined);
 
   const refresh = () => {
+    setIsRefreshing(true);
     forceRef.current = months;
     // react-query calls each queryFn synchronously inside refetch(), before
     // refetch() itself returns — so by the time `.map()` below is done, all
@@ -69,7 +77,7 @@ export const useReportingDashboard = (months) => {
     // for a request that was never part of this refresh.
     const promises = queries.map((q) => q.refetch());
     forceRef.current = null;
-    return Promise.all(promises);
+    return Promise.all(promises).finally(() => setIsRefreshing(false));
   };
 
   return {
@@ -77,11 +85,7 @@ export const useReportingDashboard = (months) => {
     trends: trendsData,
     breakdowns: breakdownsData,
     isLoading,
-    isRefreshing: !isLoading && queries.some((q) => q.isFetching),
-    // The KPI cards track the summary alone. The three queries are
-    // independent now, so flagging them from a dashboard-wide "refreshing"
-    // would spin all five cards over values nobody is refetching.
-    isSummaryFetching: summary.isFetching,
+    isRefreshing,
     // Mirrors the Promise.all this replaced: partial data was never shown, so
     // a first load that loses any leg still replaces the page with the alert.
     hasAllData: [summaryData, trendsData, breakdownsData].every((d) => d !== undefined),
@@ -101,7 +105,11 @@ export const useCourseReports = ({ search, page, enabled }) => {
 
   return {
     data: useLastDefined(query.data, EMPTY_PAGE),
-    isFetching: query.isFetching,
+    isPending: query.isPending,
+    // A page or search change refetches under the rows already on screen
+    // (keepPreviousData), so the caller flags it beside the filters instead of
+    // replacing the table with the full-page spinner.
+    isRefetching: query.isRefetching,
     error: query.error,
     errorUpdatedAt: query.errorUpdatedAt,
   };

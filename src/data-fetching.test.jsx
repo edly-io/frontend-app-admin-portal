@@ -58,6 +58,24 @@ describe('dashboard trend-window change', () => {
     expect(screen.queryByText('Loading reporting')).not.toBeInTheDocument();
   });
 
+  it('is not a refresh: the Refresh button and the KPI cards stay idle', async () => {
+    renderWithProviders(<ReportingDashboardPage />);
+    await screen.findByText('100');
+
+    let releaseTrends;
+    api.getReportingTrends.mockReturnValue(new Promise((r) => { releaseTrends = r; }));
+    fireEvent.change(screen.getByLabelText('Trend window'), { target: { value: '6' } });
+    await waitFor(() => expect(api.getReportingTrends).toHaveBeenCalledWith({ months: 6 }));
+
+    // Trends is still in flight: the button must not disable itself or
+    // relabel to 'Refreshing…', and the KPI placeholders must not appear over
+    // values nobody is refetching.
+    expect(screen.getByRole('button', { name: /refresh metrics/i })).toBeEnabled();
+    expect(screen.queryAllByLabelText('Loading')).toHaveLength(0);
+
+    await act(async () => { releaseTrends(TRENDS); });
+  });
+
   it('keeps the last loaded values on screen when a refresh fails', async () => {
     renderWithProviders(<ReportingDashboardPage />);
     await screen.findByText('100');
@@ -67,6 +85,9 @@ describe('dashboard trend-window change', () => {
 
     expect(await screen.findByText(/Showing the last loaded values/)).toBeInTheDocument();
     expect(screen.getByText('100')).toBeInTheDocument();
+    // The refreshing flag is owned by refresh(), so a failed one has to clear
+    // it or the button stays dead for the rest of the session.
+    await waitFor(() => expect(screen.getByRole('button', { name: /refresh metrics/i })).toBeEnabled());
   });
 });
 

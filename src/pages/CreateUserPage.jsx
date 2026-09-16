@@ -5,8 +5,10 @@ import {
 } from '@openedx/paragon';
 
 import { useCreateUser } from '../data/hooks/users';
+import { extractFieldErrors } from '../utils/extractFieldErrors';
 
-const FIELDS = ['username', 'email', 'name'];
+// This form's field names are the ones DRF answers with.
+const FIELD_MAP = { username: 'username', email: 'email', name: 'name' };
 
 const CreateUserPage = () => {
   const navigate = useNavigate();
@@ -23,18 +25,21 @@ const CreateUserPage = () => {
   // A new mutate clears both of these on its own, which is what the explicit
   // reset at the top of the old handler did.
   const err = createUser.error;
+  // Only a rejected submission carries per-field messages; any other failure
+  // (and any other body) is reported as one generic banner.
   const status = err?.response?.status;
-  const body = err?.response?.data || {};
-  const fieldErrors = {};
+  const isRejectedSubmission = status === 400 || status === 409;
+  const { hasFieldErrors, fieldErrors } = extractFieldErrors(
+    isRejectedSubmission ? err : null,
+    FIELD_MAP,
+  );
+
   let nonFieldError = '';
-  if (err && (status === 409 || status === 400)) {
-    // DRF field-keyed errors: { field: [messages] }
-    Object.entries(body).forEach(([k, msgs]) => {
-      if (FIELDS.includes(k)) { fieldErrors[k] = Array.isArray(msgs) ? msgs.join(' ') : String(msgs); }
-    });
-    if (body.non_field_errors) {
-      nonFieldError = [].concat(body.non_field_errors).join(' ');
-    } else if (Object.keys(fieldErrors).length === 0) {
+  if (isRejectedSubmission) {
+    const nonFieldMessages = [].concat(err.response.data?.non_field_errors || []).join(' ');
+    if (nonFieldMessages) {
+      nonFieldError = nonFieldMessages;
+    } else if (!hasFieldErrors) {
       nonFieldError = 'Could not create the account. Please check the fields and try again.';
     }
   } else if (err) {

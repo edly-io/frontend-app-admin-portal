@@ -1,6 +1,6 @@
 import React from 'react';
 import {
-  renderWithProviders, screen, fireEvent, waitFor, within,
+  renderWithProviders, screen, fireEvent, waitFor, within, act,
 } from '../test-utils';
 
 import ReportingCoursesPage from './ReportingCoursesPage';
@@ -74,5 +74,22 @@ describe('ReportingCoursesPage', () => {
     await screen.findByText('Algebra');
     fireEvent.change(screen.getByPlaceholderText('course name, id or org'), { target: { value: 'alg' } });
     await waitFor(() => expect(getCourseReports).toHaveBeenCalledWith(expect.objectContaining({ search: 'alg' })));
+  });
+
+  it('flags the reload beside the search box and keeps the rows up during a search', async () => {
+    renderWithProviders(<ReportingCoursesPage />);
+    await screen.findByText('Algebra');
+
+    let releaseCourses;
+    getCourseReports.mockReturnValueOnce(new Promise((r) => { releaseCourses = r; }));
+    fireEvent.change(screen.getByPlaceholderText('course name, id or org'), { target: { value: 'alg' } });
+
+    expect(await screen.findByText('Updating courses')).toBeInTheDocument();
+    // The full-page spinner would have thrown the table away mid-request.
+    expect(screen.getByText('Algebra')).toBeInTheDocument();
+    expect(screen.queryByText('Loading courses')).not.toBeInTheDocument();
+
+    await act(async () => { releaseCourses(COURSES); });
+    await waitFor(() => expect(screen.queryByText('Updating courses')).not.toBeInTheDocument());
   });
 });

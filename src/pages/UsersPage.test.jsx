@@ -1,6 +1,6 @@
 import React from 'react';
 import {
-  renderWithProviders, screen, fireEvent, waitFor, within,
+  renderWithProviders, screen, fireEvent, waitFor, within, act,
 } from '../test-utils';
 
 import UsersPage from './UsersPage';
@@ -67,6 +67,23 @@ describe('UsersPage', () => {
     await screen.findByText('alice');
     fireEvent.change(screen.getByLabelText('Status'), { target: { value: 'disabled' } });
     await waitFor(() => expect(getUsers).toHaveBeenCalledWith(expect.objectContaining({ status: 'disabled' })));
+  });
+
+  it('flags the reload beside the filters and keeps the rows up during a filter change', async () => {
+    renderPage();
+    await screen.findByText('alice');
+
+    let releaseUsers;
+    getUsers.mockReturnValueOnce(new Promise((r) => { releaseUsers = r; }));
+    fireEvent.change(screen.getByLabelText('Status'), { target: { value: 'disabled' } });
+
+    expect(await screen.findByText('Updating users')).toBeInTheDocument();
+    // The full-page spinner would have thrown the table away mid-request.
+    expect(screen.getByText('alice')).toBeInTheDocument();
+    expect(screen.queryByText('Loading users')).not.toBeInTheDocument();
+
+    await act(async () => { releaseUsers(USERS); });
+    await waitFor(() => expect(screen.queryByText('Updating users')).not.toBeInTheDocument());
   });
 
   it('deactivates an active user after confirmation', async () => {
