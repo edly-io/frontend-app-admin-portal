@@ -76,6 +76,29 @@ describe('dashboard trend-window change', () => {
     await act(async () => { releaseTrends(TRENDS); });
   });
 
+  it('does not wedge the refreshing state when the window changes mid-refresh', async () => {
+    renderWithProviders(<ReportingDashboardPage />);
+    await screen.findByText('100');
+
+    // Start a refresh and hold the trends leg open.
+    let releaseTrends;
+    api.getReportingTrends.mockReturnValueOnce(new Promise((r) => { releaseTrends = r; }));
+    fireEvent.click(screen.getByRole('button', { name: /refreshing|refresh metrics/i }));
+    await waitFor(() => expect(api.getReportingSummary).toHaveBeenCalledWith({ force_refresh: 1 }));
+
+    // Changing the window mid-refresh abandons that in-flight trends fetch.
+    api.getReportingTrends.mockResolvedValue(TRENDS);
+    fireEvent.change(screen.getByLabelText('Trend window'), { target: { value: '6' } });
+    await waitFor(() => expect(api.getReportingTrends).toHaveBeenCalledWith({ months: 6 }));
+
+    // Summary and breakdowns have landed, so the page has to settle: the
+    // button must come back and the KPI cards must drop their placeholders.
+    await waitFor(() => expect(screen.getByRole('button', { name: /refresh metrics/i })).toBeEnabled());
+    expect(screen.queryAllByLabelText('Loading')).toHaveLength(0);
+
+    await act(async () => { releaseTrends(TRENDS); });
+  });
+
   it('keeps the last loaded values on screen when a refresh fails', async () => {
     renderWithProviders(<ReportingDashboardPage />);
     await screen.findByText('100');
