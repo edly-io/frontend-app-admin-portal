@@ -76,7 +76,7 @@ const REPORT_TYPES = [
 
 // Small uppercase label above the course name in the page header.
 const EYEBROW_STYLE = {
-  fontSize: '.8125rem', fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase',
+  fontSize: '.875rem', fontWeight: 700, letterSpacing: '.09em', textTransform: 'uppercase',
 };
 
 const RUNNING_STATES = new Set(['QUEUING', 'IN_PROGRESS']);
@@ -228,7 +228,7 @@ const CourseReportsPage = () => {
       </div>
 
       <div className="mb-4">
-        <p className="text-muted mb-1" style={EYEBROW_STYLE}>Course reports</p>
+        <p className="text-body mb-1" style={EYEBROW_STYLE}>Course reports</p>
         <h1 className="mb-1">{courseName || courseId}</h1>
         {courseName && (
           <p className="text-muted small mb-0">
