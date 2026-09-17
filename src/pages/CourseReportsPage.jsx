@@ -10,7 +10,7 @@ import {
 import { InfoOutline } from '@openedx/paragon/icons';
 
 import {
-  triggerCourseReport, getCourseReportDownloads, getCourseCertificates,
+  triggerCourseReport, getCourseReportDownloads, getCourseCertificates, getCourseReports,
 } from '../data/api';
 import { formatDateTime } from '../utils/formatDate';
 
@@ -74,6 +74,11 @@ const REPORT_TYPES = [
   },
 ];
 
+// Small uppercase label above the course name in the page header.
+const EYEBROW_STYLE = {
+  fontSize: '.875rem', fontWeight: 700, letterSpacing: '.09em', textTransform: 'uppercase',
+};
+
 const RUNNING_STATES = new Set(['QUEUING', 'IN_PROGRESS']);
 
 const STATE_VARIANTS = {
@@ -115,6 +120,7 @@ const CourseReportsPage = () => {
 
   const [downloads, setDownloads] = useState([]);
   const [certificates, setCertificates] = useState([]);
+  const [courseName, setCourseName] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [toast, setToast] = useState('');
@@ -145,6 +151,21 @@ const CourseReportsPage = () => {
           : 'Could not load course reports.');
       })
       .finally(() => active && setLoading(false));
+    return () => { active = false; };
+  }, [courseId]);
+
+  // Course display name for the header. Best-effort: a failed lookup must not
+  // surface as the page-level error alert.
+  useEffect(() => {
+    let active = true;
+    setCourseName('');
+    getCourseReports({ search: courseId, page: 1 })
+      .then((data) => {
+        if (!active) { return; }
+        const match = (data.results || []).find((c) => c.course_id === courseId);
+        setCourseName(match?.display_name || '');
+      })
+      .catch(() => {});
     return () => { active = false; };
   }, [courseId]);
 
@@ -205,10 +226,16 @@ const CourseReportsPage = () => {
       <div className="mb-2">
         <Link to="/reporting/courses">&larr; All courses</Link>
       </div>
-      <h1 className="mb-1">Course reports</h1>
-      <p className="text-muted">
-        <span style={{ fontFamily: 'monospace' }}>{courseId}</span>
-      </p>
+
+      <div className="mb-4">
+        <p className="text-body mb-1" style={EYEBROW_STYLE}>Course reports</p>
+        <h1 className="mb-1">{courseName || courseId}</h1>
+        {courseName && (
+          <p className="text-muted small mb-0">
+            <span style={{ fontFamily: 'monospace' }}>{courseId}</span>
+          </p>
+        )}
+      </div>
 
       {error && <Alert variant="danger" dismissible onClose={() => setError('')}>{error}</Alert>}
 
@@ -235,7 +262,8 @@ const CourseReportsPage = () => {
                   >
                     <span>{r.label}</span>
                     <OverlayTrigger
-                      placement="right"
+                      placement="left"
+                      flip
                       overlay={<Tooltip id={`report-tooltip-${r.slug}`}>{r.description}</Tooltip>}
                     >
                       <span
@@ -260,15 +288,31 @@ const CourseReportsPage = () => {
       ) : (
         <>
           <h2 className="h5 mb-2">Downloads</h2>
-          <DataTable columns={downloadColumns} data={downloads} itemCount={downloads.length}>
+          <DataTable
+            isPaginated
+            initialState={{ pageIndex: 0, pageSize: 10 }}
+            initialTableOptions={{ autoResetPage: false }}
+            columns={downloadColumns}
+            data={downloads}
+            itemCount={downloads.length}
+          >
             <DataTable.Table />
             <DataTable.EmptyTable content="No reports generated yet" />
+            <DataTable.TableFooter />
           </DataTable>
 
           <h2 className="h5 mb-2 mt-4">Certificates</h2>
-          <DataTable columns={certColumns} data={certificates} itemCount={certificates.length}>
+          <DataTable
+            isPaginated
+            initialState={{ pageIndex: 0, pageSize: 10 }}
+            initialTableOptions={{ autoResetPage: false }}
+            columns={certColumns}
+            data={certificates}
+            itemCount={certificates.length}
+          >
             <DataTable.Table />
             <DataTable.EmptyTable content="No certificates issued" />
+            <DataTable.TableFooter />
           </DataTable>
         </>
       )}

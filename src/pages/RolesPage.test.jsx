@@ -12,9 +12,9 @@ jest.mock('../data/api', () => ({
 
 const ROLES = {
   roles: [
-    { role: 'instructor', description: 'Course Admin — full control.' },
-    { role: 'staff', description: 'Course Staff — manage content.' },
-    { role: 'limited_staff', description: 'Limited Staff — LMS only.' },
+    { role: 'instructor', description: 'Course Admin. Full control.' },
+    { role: 'staff', description: 'Course Staff. Manage content.' },
+    { role: 'limited_staff', description: 'Limited Staff. LMS only.' },
   ],
 };
 
@@ -32,13 +32,13 @@ describe('RolesPage', () => {
     renderPage();
     // Descriptions unique to non-selected roles (the selected role's description
     // also renders in the form's help text).
-    expect(await screen.findByText(/manage content\./)).toBeInTheDocument();
+    expect(await screen.findByText(/Manage content\./)).toBeInTheDocument();
     expect(screen.getByText(/LMS only\./)).toBeInTheDocument();
   });
 
   it('grants a role and confirms success', async () => {
     renderPage();
-    await screen.findByText('Course Admin — full control.');
+    await screen.findByText('Course Admin. Full control.');
     fireEvent.change(screen.getByLabelText('Course run ID'), { target: { value: 'course-v1:Org+Course+Run' } });
     fireEvent.change(screen.getByLabelText('User (email or username)'), { target: { value: 'bob' } });
     fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
