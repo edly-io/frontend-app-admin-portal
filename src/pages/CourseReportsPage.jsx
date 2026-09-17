@@ -10,7 +10,7 @@ import {
 import { InfoOutline } from '@openedx/paragon/icons';
 
 import {
-  triggerCourseReport, getCourseReportDownloads, getCourseCertificates,
+  triggerCourseReport, getCourseReportDownloads, getCourseCertificates, getCourseReports,
 } from '../data/api';
 import { formatDateTime } from '../utils/formatDate';
 
@@ -115,6 +115,7 @@ const CourseReportsPage = () => {
 
   const [downloads, setDownloads] = useState([]);
   const [certificates, setCertificates] = useState([]);
+  const [courseName, setCourseName] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [toast, setToast] = useState('');
@@ -145,6 +146,21 @@ const CourseReportsPage = () => {
           : 'Could not load course reports.');
       })
       .finally(() => active && setLoading(false));
+    return () => { active = false; };
+  }, [courseId]);
+
+  // Course display name for the header. Best-effort: a failed lookup must not
+  // surface as the page-level error alert.
+  useEffect(() => {
+    let active = true;
+    setCourseName('');
+    getCourseReports({ search: courseId, page: 1 })
+      .then((data) => {
+        if (!active) { return; }
+        const match = (data.results || []).find((c) => c.course_id === courseId);
+        setCourseName(match?.display_name || '');
+      })
+      .catch(() => {});
     return () => { active = false; };
   }, [courseId]);
 
@@ -206,7 +222,8 @@ const CourseReportsPage = () => {
         <Link to="/reporting/courses">&larr; All courses</Link>
       </div>
       <h1 className="mb-1">Course reports</h1>
-      <p className="text-muted">
+      <p className="text-muted mb-4">
+        {courseName && <>{courseName}<br /></>}
         <span style={{ fontFamily: 'monospace' }}>{courseId}</span>
       </p>
 
@@ -235,7 +252,8 @@ const CourseReportsPage = () => {
                   >
                     <span>{r.label}</span>
                     <OverlayTrigger
-                      placement="right"
+                      placement="left"
+                      flip
                       overlay={<Tooltip id={`report-tooltip-${r.slug}`}>{r.description}</Tooltip>}
                     >
                       <span
@@ -260,15 +278,31 @@ const CourseReportsPage = () => {
       ) : (
         <>
           <h2 className="h5 mb-2">Downloads</h2>
-          <DataTable columns={downloadColumns} data={downloads} itemCount={downloads.length}>
+          <DataTable
+            isPaginated
+            initialState={{ pageIndex: 0, pageSize: 10 }}
+            initialTableOptions={{ autoResetPage: false }}
+            columns={downloadColumns}
+            data={downloads}
+            itemCount={downloads.length}
+          >
             <DataTable.Table />
             <DataTable.EmptyTable content="No reports generated yet" />
+            <DataTable.TableFooter />
           </DataTable>
 
           <h2 className="h5 mb-2 mt-4">Certificates</h2>
-          <DataTable columns={certColumns} data={certificates} itemCount={certificates.length}>
+          <DataTable
+            isPaginated
+            initialState={{ pageIndex: 0, pageSize: 10 }}
+            initialTableOptions={{ autoResetPage: false }}
+            columns={certColumns}
+            data={certificates}
+            itemCount={certificates.length}
+          >
             <DataTable.Table />
             <DataTable.EmptyTable content="No certificates issued" />
+            <DataTable.TableFooter />
           </DataTable>
         </>
       )}

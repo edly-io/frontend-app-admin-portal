@@ -6,13 +6,14 @@ import {
 
 import CourseReportsPage from './CourseReportsPage';
 import {
-  getCourseReportDownloads, getCourseCertificates, triggerCourseReport,
+  getCourseReportDownloads, getCourseCertificates, triggerCourseReport, getCourseReports,
 } from '../data/api';
 
 jest.mock('../data/api', () => ({
   getCourseReportDownloads: jest.fn(),
   getCourseCertificates: jest.fn(),
   triggerCourseReport: jest.fn(),
+  getCourseReports: jest.fn(),
 }));
 
 const COURSE_ID = 'course-v1:Org+A+2026';
@@ -38,6 +39,10 @@ beforeEach(() => {
   });
   getCourseCertificates.mockResolvedValue({ count: 0, results: [] });
   triggerCourseReport.mockResolvedValue({ task_id: 't2', report_type: 'grade_csv' });
+  getCourseReports.mockResolvedValue({
+    count: 1,
+    results: [{ course_id: COURSE_ID, display_name: 'Intro to Everything' }],
+  });
 });
 
 describe('CourseReportsPage', () => {
@@ -83,5 +88,35 @@ describe('CourseReportsPage', () => {
     // 'Survey Results' only exists as a menu item (not in the downloads table).
     fireEvent.click(await screen.findByText('Survey Results'));
     expect(await screen.findByText('A report of this type is already running.')).toBeInTheDocument();
+  });
+
+  it('shows the course display name in the header alongside the id', async () => {
+    renderPage();
+    expect(await screen.findByText('Intro to Everything')).toBeInTheDocument();
+    expect(screen.getByText(COURSE_ID)).toBeInTheDocument();
+  });
+
+  it('still renders the page with the id and no error alert when the name lookup fails', async () => {
+    getCourseReports.mockRejectedValue(new Error('boom'));
+    renderPage();
+    expect(await screen.findByText(COURSE_ID)).toBeInTheDocument();
+    expect(screen.getByText('Grade Report')).toBeInTheDocument();
+    expect(screen.queryByText('Could not load course reports.')).not.toBeInTheDocument();
+  });
+
+  it('paginates downloads to 10 rows with a table footer', async () => {
+    const rows = Array.from({ length: 12 }, (_, i) => ({
+      task_id: `t${i}`,
+      report_type: 'grade_csv',
+      report_label: `Grade Report ${i}`,
+      state: 'SUCCESS',
+      created: '2026-05-04T09:07:00+00:00',
+      download_url: `https://s3/g${i}.csv`,
+    }));
+    getCourseReportDownloads.mockResolvedValue({ results: rows });
+    renderPage();
+    await screen.findByText('Grade Report 0');
+    expect(screen.getAllByText(/^Grade Report \d+$/)).toHaveLength(10);
+    expect(screen.getAllByTestId('table-footer').length).toBeGreaterThan(0);
   });
 });
