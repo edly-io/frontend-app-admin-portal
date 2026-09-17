@@ -74,6 +74,11 @@ const REPORT_TYPES = [
   },
 ];
 
+// Small uppercase label above the course name in the page header.
+const EYEBROW_STYLE = {
+  fontSize: '.8125rem', fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase',
+};
+
 const RUNNING_STATES = new Set(['QUEUING', 'IN_PROGRESS']);
 
 const STATE_VARIANTS = {
@@ -221,11 +226,16 @@ const CourseReportsPage = () => {
       <div className="mb-2">
         <Link to="/reporting/courses">&larr; All courses</Link>
       </div>
-      <h1 className="mb-1">Course reports</h1>
-      <p className="text-muted mb-4">
-        {courseName && <>{courseName}<br /></>}
-        <span style={{ fontFamily: 'monospace' }}>{courseId}</span>
-      </p>
+
+      <div className="mb-4">
+        <p className="text-muted mb-1" style={EYEBROW_STYLE}>Course reports</p>
+        <h1 className="mb-1">{courseName || courseId}</h1>
+        {courseName && (
+          <p className="text-muted small mb-0">
+            <span style={{ fontFamily: 'monospace' }}>{courseId}</span>
+          </p>
+        )}
+      </div>
 
       {error && <Alert variant="danger" dismissible onClose={() => setError('')}>{error}</Alert>}
 
