@@ -150,7 +150,16 @@ const CourseIdField = ({
           role="listbox"
           className="dropdown-menu show"
           style={{
-            maxHeight: '14rem', overflowY: 'auto', width: '100%', zIndex: 1000,
+            maxHeight: '14rem',
+            overflowY: 'auto',
+            width: '100%',
+            zIndex: 1000,
+            // The panel already paints an opaque white, but with no shadow and
+            // a hairline border it reads as see-through against the field
+            // below it. Elevation is what separates it, not the fill.
+            backgroundColor: '#fff',
+            border: '1px solid rgba(0, 0, 0, .2)',
+            boxShadow: '0 .5rem 1rem rgba(0, 0, 0, .18)',
           }}
         >
           {loading && <div className="dropdown-item-text text-muted small">Searching…</div>}
@@ -174,7 +183,7 @@ const CourseIdField = ({
           ))}
           {!loading && suggestions.length > MAX_VISIBLE_SUGGESTIONS && (
             <div className="dropdown-item-text text-muted small">
-              {`+${suggestions.length - MAX_VISIBLE_SUGGESTIONS} more — keep typing to narrow`}
+              {`+${suggestions.length - MAX_VISIBLE_SUGGESTIONS} more. Keep typing to narrow.`}
             </div>
           )}
         </div>

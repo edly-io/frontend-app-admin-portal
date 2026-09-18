@@ -11,6 +11,7 @@ import { getReportingSummary, getReportingTrends, getReportingBreakdowns } from 
 import KpiCard from '../components/KpiCard';
 import MetricChart from '../components/MetricChart';
 import { formatDateTime } from '../utils/formatDate';
+import usePageTitle from '../hooks/usePageTitle';
 
 const fmt = (value) => (value === null || value === undefined ? '—' : Number(value).toLocaleString());
 
@@ -40,6 +41,7 @@ ChartCard.propTypes = {
 };
 
 const ReportingDashboardPage = () => {
+  usePageTitle('Reports');
   const [summary, setSummary] = useState(null);
   const [trends, setTrends] = useState(null);
   const [breakdowns, setBreakdowns] = useState(null);
@@ -205,6 +207,7 @@ const ReportingDashboardPage = () => {
             <MetricChart
               type="bar"
               data={toChartData(trends?.enrollments)}
+              seriesLabels={{ value: 'Enrollments' }}
               ariaLabel={`Enrollment trend over the last ${months} months`}
               height={280}
             />
@@ -218,6 +221,7 @@ const ReportingDashboardPage = () => {
             <MetricChart
               type="line"
               data={toChartData(trends?.registrations)}
+              seriesLabels={{ value: 'Registrations' }}
               ariaLabel={`Registration trend over the last ${months} months`}
               height={220}
             />

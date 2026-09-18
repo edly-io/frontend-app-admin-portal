@@ -41,9 +41,9 @@ describe('UsersPage', () => {
     expect(within(table).getByText('Active')).toBeInTheDocument();
     expect(within(table).getByText('Disabled')).toBeInTheDocument();
     // LMS Role column: header + per-row values.
-    expect(within(table).getByText('LMS Role')).toBeInTheDocument();
-    expect(within(table).getByText('learner')).toBeInTheDocument();
-    expect(within(table).getByText('staff')).toBeInTheDocument();
+    expect(within(table).getByText('LMS role')).toBeInTheDocument();
+    expect(within(table).getByText('Learner')).toBeInTheDocument();
+    expect(within(table).getByText('Staff')).toBeInTheDocument();
   });
 
   it('shows the enrollment count, or a dash when the backend could not compute it', async () => {
@@ -58,14 +58,14 @@ describe('UsersPage', () => {
   it('passes the search term to the API', async () => {
     renderPage();
     await screen.findByText('alice');
-    fireEvent.change(screen.getByPlaceholderText('name, username or email'), { target: { value: 'ali' } });
+    fireEvent.change(screen.getByLabelText('Search users'), { target: { value: 'ali' } });
     await waitFor(() => expect(getUsers).toHaveBeenCalledWith(expect.objectContaining({ search: 'ali' })));
   });
 
   it('passes the status filter to the API', async () => {
     renderPage();
     await screen.findByText('alice');
-    fireEvent.change(screen.getByLabelText('Status'), { target: { value: 'disabled' } });
+    fireEvent.change(screen.getByLabelText('Filter by status'), { target: { value: 'disabled' } });
     await waitFor(() => expect(getUsers).toHaveBeenCalledWith(expect.objectContaining({ status: 'disabled' })));
   });
 

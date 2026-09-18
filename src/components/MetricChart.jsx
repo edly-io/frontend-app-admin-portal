@@ -40,7 +40,7 @@ export const resolveParagonToken = (token, fallback) => {
 export const getChartColors = () => [
   '#0D7D4D',
   resolveParagonToken('--pgn-color-info-500', '#0070D2'),
-  resolveParagonToken('--pgn-color-warning-500', '#FFB81C'),
+  '#8A6100',
   resolveParagonToken('--pgn-color-danger-500', '#C00000'),
   resolveParagonToken('--pgn-color-success-500', '#178253'),
 ];
@@ -111,11 +111,13 @@ const MetricChart = ({
   type,
   data,
   series = ['value'],
+  seriesLabels = {},
   ariaLabel,
   height = 300,
   compact = false,
   hideLegend = false,
 }) => {
+  const labelFor = (key) => seriesLabels[key] || key;
   const reducedMotion = usePrefersReducedMotion();
   const colors = getChartColors();
   const chartProps = { isAnimationActive: !reducedMotion };
@@ -138,7 +140,8 @@ const MetricChart = ({
           {series.map((key, i) => (
             <Line
               key={key}
-              type="monotone"
+              type="linear"
+              name={labelFor(key)}
               dataKey={key}
               stroke={colors[i % colors.length]}
               strokeWidth={2}
@@ -159,7 +162,7 @@ const MetricChart = ({
           <Tooltip />
           {!hideLegend && !compact && <Legend />}
           {series.map((key, i) => (
-            <Bar key={key} dataKey={key} fill={colors[i % colors.length]} {...chartProps} />
+            <Bar key={key} name={labelFor(key)} dataKey={key} fill={colors[i % colors.length]} {...chartProps} />
           ))}
         </BarChart>
       );
@@ -184,7 +187,7 @@ const MetricChart = ({
             ))}
           </Pie>
           <Tooltip />
-          {!hideLegend && <Legend />}
+          {!hideLegend && <Legend wrapperStyle={{ fontSize: '.8125rem' }} />}
         </PieChart>
       );
     }
@@ -206,6 +209,7 @@ MetricChart.propTypes = {
   type: PropTypes.oneOf(['line', 'bar', 'donut']).isRequired,
   data: PropTypes.arrayOf(PropTypes.shape({})).isRequired,
   series: PropTypes.arrayOf(PropTypes.string),
+  seriesLabels: PropTypes.objectOf(PropTypes.string),
   ariaLabel: PropTypes.string.isRequired,
   height: PropTypes.number,
   compact: PropTypes.bool,

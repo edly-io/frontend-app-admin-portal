@@ -4,15 +4,16 @@ import React, {
 import PropTypes from 'prop-types';
 import { Link, useParams } from 'react-router-dom';
 import {
-  Container, Card, Dropdown, DataTable, Alert, Spinner, Badge, Toast, Hyperlink,
-  OverlayTrigger, Tooltip, Icon,
+  Container, Dropdown, DataTable, Alert, Spinner, Badge, Toast, Hyperlink, Form,
 } from '@openedx/paragon';
-import { InfoOutline } from '@openedx/paragon/icons';
 
 import {
   triggerCourseReport, getCourseReportDownloads, getCourseCertificates, getCourseReports,
 } from '../data/api';
 import { formatDateTime } from '../utils/formatDate';
+import usePageTitle from '../hooks/usePageTitle';
+import EmptyState from '../components/EmptyState';
+import { TABLE_PAGE_SIZE } from '../constants/layout';
 
 // Report types the backend accepts, with display labels (mirrors REPORT_LABELS)
 // and a short description of what each report contains.
@@ -74,9 +75,46 @@ const REPORT_TYPES = [
   },
 ];
 
-// Small uppercase label above the course name in the page header.
-const EYEBROW_STYLE = {
-  fontSize: '.875rem', fontWeight: 700, letterSpacing: '.09em', textTransform: 'uppercase',
+// H3: the page label sits on the back-link row rather than above the title, so
+// the title block is name + id only and two heavy elements stop competing.
+// The report descriptions used to sit behind a hover tooltip. Popper anchors a
+// tooltip to the icon, which is inside the menu, so "left" laid it over the
+// menu's own labels and "right" ran it off the viewport. Inline secondary text
+// has no placement to get wrong, and unlike the old icon it is reachable by
+// keyboard and read out by screen readers.
+const MENU_ITEM_STYLE = { whiteSpace: 'normal', paddingTop: '.5rem', paddingBottom: '.5rem' };
+// A hairline between options so eleven stacked label+description pairs read as
+// separate choices rather than one block of prose.
+const MENU_ITEM_DIVIDED_STYLE = { ...MENU_ITEM_STYLE, borderTop: '1px solid #E9E6E4' };
+// Paragon wraps Form.Control in a decorator <div> that flex-grows, so a width
+// or ml-auto passed to the control lands on that wrapper and fills the row.
+// Constrain an outer element instead.
+const SEARCH_STYLE = { width: '18rem', flex: '0 0 auto' };
+const MENU_DESC_STYLE = { fontSize: '13px', lineHeight: 1.45, whiteSpace: 'normal' };
+
+// Eleven two-line items is taller than a laptop viewport, so the menu scrolls
+// rather than running off the bottom of the screen.
+const MENU_STYLE = { width: '24rem', maxHeight: '60vh', overflowY: 'auto' };
+
+// Identity block: the course name never wraps and never dominates. A long name
+// truncates with an ellipsis and carries the full string in a title attribute.
+const COURSE_TITLE_STYLE = {
+  fontSize: '26px',
+  fontWeight: 600,
+  lineHeight: 1.25,
+  margin: 0,
+  whiteSpace: 'nowrap',
+  overflow: 'hidden',
+  textOverflow: 'ellipsis',
+};
+const COURSE_ID_STYLE = {
+  fontFamily: 'monospace', fontSize: '13px', marginTop: '4px',
+};
+// One tier below the page title, and identical to each other.
+const SECTION_LABEL_STYLE = { fontSize: '15px', fontWeight: 600, margin: 0 };
+
+const CRUMB_STYLE = {
+  fontSize: '.75rem', fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase',
 };
 
 const RUNNING_STATES = new Set(['QUEUING', 'IN_PROGRESS']);
@@ -89,22 +127,42 @@ const STATE_VARIANTS = {
   IN_PROGRESS: 'info',
 };
 
+// Celery task states are wire values. Don't show them to admins.
+const STATE_LABELS = {
+  SUCCESS: 'Ready',
+  FAILURE: 'Failed',
+  REVOKED: 'Cancelled',
+  QUEUING: 'Queued',
+  IN_PROGRESS: 'Running',
+};
+
 const downloadRowShape = PropTypes.shape({
   original: PropTypes.shape({
     state: PropTypes.string,
     download_url: PropTypes.string,
+    report_type: PropTypes.string,
+    report_label: PropTypes.string,
   }),
 }).isRequired;
 
 const StateCell = ({ row }) => {
   const { state } = row.original;
-  return <Badge variant={STATE_VARIANTS[state] || 'light'}>{state}</Badge>;
+  return <Badge variant={STATE_VARIANTS[state] || 'light'}>{STATE_LABELS[state] || state}</Badge>;
 };
 StateCell.propTypes = { row: downloadRowShape };
 
 const DownloadCell = ({ row }) => {
-  const url = row.original.download_url;
-  return url ? <Hyperlink destination={url} target="_blank">Download</Hyperlink> : <span>—</span>;
+  const { download_url: url, state } = row.original;
+  if (url) {
+    return <Hyperlink destination={url} target="_blank">Download</Hyperlink>;
+  }
+  if (state === 'FAILURE') {
+    return <span className="text-muted">Try again by generating a new report.</span>;
+  }
+  if (RUNNING_STATES.has(state)) {
+    return <span className="text-muted">Preparing…</span>;
+  }
+  return <span className="text-muted">Not available</span>;
 };
 DownloadCell.propTypes = { row: downloadRowShape };
 
@@ -113,6 +171,16 @@ const CreatedCell = ({ row }) => (
 );
 CreatedCell.propTypes = {
   row: PropTypes.shape({ original: PropTypes.shape({ created: PropTypes.string }) }).isRequired,
+};
+
+/**
+ * Both report endpoints return their whole list in one response, so filtering
+ * is a plain in-memory match. No request is made while typing.
+ */
+const matches = (needle, ...fields) => {
+  const q = needle.trim().toLowerCase();
+  if (!q) { return true; }
+  return fields.some((f) => String(f ?? '').toLowerCase().includes(q));
 };
 
 const CourseReportsPage = () => {
@@ -125,7 +193,11 @@ const CourseReportsPage = () => {
   const [error, setError] = useState('');
   const [toast, setToast] = useState('');
   const [triggeringSlug, setTriggeringSlug] = useState(null);
+  const [downloadSearch, setDownloadSearch] = useState('');
+  const [certSearch, setCertSearch] = useState('');
   const timerRef = useRef(null);
+
+  usePageTitle(courseName ? `${courseName} reports` : 'Course reports');
 
   const fetchDownloads = useCallback(async () => {
     const data = await getCourseReportDownloads(courseId);
@@ -184,7 +256,7 @@ const CourseReportsPage = () => {
     };
   }, [downloads, fetchDownloads]);
 
-  const onTrigger = async (slug, label) => {
+  const onTrigger = useCallback(async (slug, label) => {
     if (triggeringSlug) { return; } // one in flight at a time; the menu is disabled anyway
     setError('');
     setTriggeringSlug(slug);
@@ -203,7 +275,7 @@ const CourseReportsPage = () => {
     } finally {
       setTriggeringSlug(null);
     }
-  };
+  }, [courseId, triggeringSlug, fetchDownloads]);
 
   const downloadColumns = useMemo(() => [
     { Header: 'Report', accessor: 'report_label' },
@@ -211,6 +283,25 @@ const CourseReportsPage = () => {
     { Header: 'Created', accessor: 'created', Cell: CreatedCell },
     { Header: 'Download', accessor: 'download_url', Cell: DownloadCell },
   ], []);
+
+  // `autoResetPage: false` keeps the table's page across the 10s downloads
+  // poll, which is what we want, but it also keeps it when the row set shrinks
+  // under a narrowing search. The page then holds an index that no longer
+  // exists: no rows render, EmptyTable stays out because itemCount is non-zero,
+  // and the footer is hidden once the remaining rows fit one page, so there is
+  // no control left to get back. Keying each table on its search term and page
+  // count remounts it at page 1 whenever the pagination shape changes, while an
+  // ordinary poll that leaves the shape alone still leaves the page put.
+  const tableKey = (search, rowCount) => `${search}|${Math.ceil(rowCount / TABLE_PAGE_SIZE)}`;
+
+  const visibleDownloads = useMemo(
+    () => downloads.filter((r) => matches(downloadSearch, r.report_label, STATE_LABELS[r.state] || r.state)),
+    [downloads, downloadSearch],
+  );
+  const visibleCertificates = useMemo(
+    () => certificates.filter((c) => matches(certSearch, c.username, c.name, c.email, c.status, c.mode)),
+    [certificates, certSearch],
+  );
 
   const certColumns = useMemo(() => [
     { Header: 'Username', accessor: 'username' },
@@ -223,96 +314,122 @@ const CourseReportsPage = () => {
 
   return (
     <Container size="xl" className="py-4">
-      <div className="mb-2">
+      <div className="d-flex align-items-center mb-3" style={{ gap: '.5rem' }}>
         <Link to="/reporting/courses">&larr; All courses</Link>
+        <span className="text-muted" aria-hidden="true">·</span>
+        <span className="text-muted" style={CRUMB_STYLE}>Course reports</span>
       </div>
 
-      <div className="mb-4">
-        <p className="text-body mb-1" style={EYEBROW_STYLE}>Course reports</p>
-        <h1 className="mb-1">{courseName || courseId}</h1>
+      {/* H1: h2 sizing, not h1's 2.5rem. This slot holds a long course name,
+          not the one-word label every other page puts in its h1. */}
+      <div className="pb-3 mb-4" style={{ borderBottom: '1px solid #E9E6E4' }}>
+        <h1 style={COURSE_TITLE_STYLE} title={courseName || courseId}>
+          {courseName || courseId}
+        </h1>
         {courseName && (
-          <p className="text-muted small mb-0">
-            <span style={{ fontFamily: 'monospace' }}>{courseId}</span>
-          </p>
+          <p className="text-muted mb-0" style={COURSE_ID_STYLE}>{courseId}</p>
         )}
       </div>
 
       {error && <Alert variant="danger" dismissible onClose={() => setError('')}>{error}</Alert>}
 
-      <Card className="mb-4">
-        <Card.Body>
-          <div className="d-flex justify-content-between align-items-center">
-            <h2 className="h5 mb-0 pl-2">Generate a report</h2>
-            <Dropdown>
-              <Dropdown.Toggle variant="primary" id="report-type-menu" disabled={!!triggeringSlug}>
-                {triggeringSlug ? (
-                  <>
-                    <Spinner animation="border" size="sm" screenReaderText="Queuing" className="mr-1" />
-                    Queuing…
-                  </>
-                ) : 'Generate report'}
-              </Dropdown.Toggle>
-              <Dropdown.Menu>
-                {REPORT_TYPES.map((r) => (
-                  <Dropdown.Item
-                    key={r.slug}
-                    disabled={!!triggeringSlug}
-                    onClick={() => onTrigger(r.slug, r.label)}
-                    className="d-flex align-items-center justify-content-between"
-                  >
-                    <span>{r.label}</span>
-                    <OverlayTrigger
-                      placement="left"
-                      flip
-                      overlay={<Tooltip id={`report-tooltip-${r.slug}`}>{r.description}</Tooltip>}
-                    >
-                      <span
-                        role="presentation"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <Icon src={InfoOutline} size="xs" className="ml-2 text-muted" />
-                      </span>
-                    </OverlayTrigger>
-                  </Dropdown.Item>
-                ))}
-              </Dropdown.Menu>
-            </Dropdown>
+      {/* F9: this was a full-width card holding one button. The action now sits
+          on the section heading row instead of in a mostly empty box. */}
+      <div className="d-flex justify-content-between align-items-center mb-4">
+        <div>
+          <h2 className="mb-1" style={SECTION_LABEL_STYLE}>Generate a report</h2>
+          <p className="text-muted small mb-0">
+            Exports run in the background and appear under Downloads when ready.
+          </p>
+        </div>
+        <div className="d-flex align-items-center" style={{ gap: '.75rem' }}>
+          <div style={SEARCH_STYLE}>
+            <Form.Control
+              type="text"
+              aria-label="Search generated reports"
+              placeholder="Search downloads"
+              value={downloadSearch}
+              onChange={(e) => setDownloadSearch(e.target.value)}
+            />
           </div>
-        </Card.Body>
-      </Card>
+          <Dropdown>
+            <Dropdown.Toggle variant="primary" id="report-type-menu" disabled={!!triggeringSlug}>
+              {triggeringSlug ? (
+                <>
+                  <Spinner animation="border" size="sm" screenReaderText="Queuing" className="mr-1" />
+                  Queuing…
+                </>
+              ) : 'Generate report'}
+            </Dropdown.Toggle>
+            <Dropdown.Menu align="right" style={MENU_STYLE}>
+              {REPORT_TYPES.map((r, i) => (
+                <Dropdown.Item
+                  key={r.slug}
+                  disabled={!!triggeringSlug}
+                  onClick={() => onTrigger(r.slug, r.label)}
+                  className="flex-column align-items-start"
+                  style={i === 0 ? MENU_ITEM_STYLE : MENU_ITEM_DIVIDED_STYLE}
+                >
+                  <span>{r.label}</span>
+                  <span className="text-muted" style={MENU_DESC_STYLE}>{r.description}</span>
+                </Dropdown.Item>
+              ))}
+            </Dropdown.Menu>
+          </Dropdown>
+        </div>
+      </div>
 
       {loading ? (
-        <div className="d-flex justify-content-center py-5">
+        <div className="d-flex justify-content-center align-items-center" style={{ minHeight: '20rem' }}>
           <Spinner animation="border" screenReaderText="Loading reports" />
         </div>
       ) : (
         <>
-          <h2 className="h5 mb-2">Downloads</h2>
+          <h2 className="mb-2" style={SECTION_LABEL_STYLE}>Downloads</h2>
           <DataTable
+            key={tableKey(downloadSearch, visibleDownloads.length)}
             isPaginated
-            initialState={{ pageIndex: 0, pageSize: 10 }}
+            initialState={{ pageIndex: 0, pageSize: TABLE_PAGE_SIZE }}
             initialTableOptions={{ autoResetPage: false }}
             columns={downloadColumns}
-            data={downloads}
-            itemCount={downloads.length}
+            data={visibleDownloads}
+            itemCount={visibleDownloads.length}
           >
             <DataTable.Table />
-            <DataTable.EmptyTable content="No reports generated yet" />
-            <DataTable.TableFooter />
+            <DataTable.EmptyTable content={downloadSearch
+              ? <EmptyState message="No reports match the search criteria" hint="Clear the search to see every generated report." />
+              : <EmptyState message="No reports yet" hint="Use Generate report above to create one." />}
+            />
+            {visibleDownloads.length > TABLE_PAGE_SIZE && <DataTable.TableFooter />}
           </DataTable>
 
-          <h2 className="h5 mb-2 mt-4">Certificates</h2>
+          <div className="d-flex align-items-center justify-content-between mb-2 mt-5" style={{ gap: '1rem' }}>
+            <h2 className="mb-0" style={SECTION_LABEL_STYLE}>Certificates</h2>
+            <div style={SEARCH_STYLE}>
+              <Form.Control
+                type="text"
+                aria-label="Search certificates"
+                placeholder="Search learners"
+                value={certSearch}
+                onChange={(e) => setCertSearch(e.target.value)}
+              />
+            </div>
+          </div>
           <DataTable
+            key={tableKey(certSearch, visibleCertificates.length)}
             isPaginated
-            initialState={{ pageIndex: 0, pageSize: 10 }}
+            initialState={{ pageIndex: 0, pageSize: TABLE_PAGE_SIZE }}
             initialTableOptions={{ autoResetPage: false }}
             columns={certColumns}
-            data={certificates}
-            itemCount={certificates.length}
+            data={visibleCertificates}
+            itemCount={visibleCertificates.length}
           >
             <DataTable.Table />
-            <DataTable.EmptyTable content="No certificates issued" />
-            <DataTable.TableFooter />
+            <DataTable.EmptyTable content={certSearch
+              ? <EmptyState message="No certificates match the search criteria" hint="Clear the search to see every issued certificate." />
+              : <EmptyState message="No certificates issued" hint="Certificates appear here once learners complete the course." />}
+            />
+            {visibleCertificates.length > TABLE_PAGE_SIZE && <DataTable.TableFooter />}
           </DataTable>
         </>
       )}

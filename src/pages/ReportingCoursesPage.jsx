@@ -10,6 +10,8 @@ import {
 import { getCourseReports } from '../data/api';
 import { formatDate } from '../utils/formatDate';
 import useDebouncedEffect from '../hooks/useDebouncedEffect';
+import usePageTitle from '../hooks/usePageTitle';
+import EmptyState from '../components/EmptyState';
 
 const PAGE_SIZE = 25;
 
@@ -49,11 +51,14 @@ const StateCell = ({ row }) => {
 StateCell.propTypes = { row: rowShape };
 
 const CreatedCell = ({ row }) => (
-  <span>{row.original.created ? formatDate(row.original.created) : '—'}</span>
+  <span className={row.original.created ? '' : 'text-muted'}>
+    {row.original.created ? formatDate(row.original.created) : 'Not set'}
+  </span>
 );
 CreatedCell.propTypes = { row: rowShape };
 
 const ReportingCoursesPage = () => {
+  usePageTitle('Courses');
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [data, setData] = useState({ count: 0, results: [] });
@@ -119,14 +124,14 @@ const ReportingCoursesPage = () => {
       </div>
 
       {loading ? (
-        <div className="d-flex justify-content-center py-5">
+        <div className="d-flex justify-content-center align-items-center" style={{ minHeight: '20rem' }}>
           <Spinner animation="border" screenReaderText="Loading courses" />
         </div>
       ) : (
         <>
           <DataTable columns={columns} data={data.results} itemCount={data.results.length}>
             <DataTable.Table />
-            <DataTable.EmptyTable content="No courses found" />
+            <DataTable.EmptyTable content={<EmptyState message="No courses found" hint="Try a different course name, id or organization." />} />
           </DataTable>
           {pageCount > 1 && (
             <Pagination

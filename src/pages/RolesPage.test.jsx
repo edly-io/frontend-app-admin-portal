@@ -30,15 +30,17 @@ beforeEach(() => {
 describe('RolesPage', () => {
   it('renders the grantable-role catalog with descriptions', async () => {
     renderPage();
-    // Descriptions unique to non-selected roles (the selected role's description
-    // also renders in the form's help text).
     expect(await screen.findByText(/Manage content\./)).toBeInTheDocument();
     expect(screen.getByText(/LMS only\./)).toBeInTheDocument();
+    // The backend prefixes limited_staff's description with the same words we
+    // already use as its label; the row must not read "Limited Staff: Limited
+    // Staff. LMS only."
+    expect(screen.queryByText(/Limited Staff\. LMS only\./)).not.toBeInTheDocument();
   });
 
   it('grants a role and confirms success', async () => {
     renderPage();
-    await screen.findByText('Course Admin. Full control.');
+    await screen.findByText(/Full control\./);
     fireEvent.change(screen.getByLabelText('Course run ID'), { target: { value: 'course-v1:Org+Course+Run' } });
     fireEvent.change(screen.getByLabelText('User (email or username)'), { target: { value: 'bob' } });
     fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
