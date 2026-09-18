@@ -74,6 +74,10 @@ const REPORT_TYPES = [
   },
 ];
 
+// Rows per page in the Downloads and Certificates tables. The page control is
+// hidden below this threshold, since there is nothing to page to.
+const PAGE_SIZE = 10;
+
 // Small uppercase label above the course name in the page header.
 const EYEBROW_STYLE = {
   fontSize: '.875rem', fontWeight: 700, letterSpacing: '.09em', textTransform: 'uppercase',
@@ -290,7 +294,7 @@ const CourseReportsPage = () => {
           <h2 className="h5 mb-2">Downloads</h2>
           <DataTable
             isPaginated
-            initialState={{ pageIndex: 0, pageSize: 10 }}
+            initialState={{ pageIndex: 0, pageSize: PAGE_SIZE }}
             initialTableOptions={{ autoResetPage: false }}
             columns={downloadColumns}
             data={downloads}
@@ -298,13 +302,13 @@ const CourseReportsPage = () => {
           >
             <DataTable.Table />
             <DataTable.EmptyTable content="No reports generated yet" />
-            <DataTable.TableFooter />
+            {downloads.length > PAGE_SIZE && <DataTable.TableFooter />}
           </DataTable>
 
           <h2 className="h5 mb-2 mt-4">Certificates</h2>
           <DataTable
             isPaginated
-            initialState={{ pageIndex: 0, pageSize: 10 }}
+            initialState={{ pageIndex: 0, pageSize: PAGE_SIZE }}
             initialTableOptions={{ autoResetPage: false }}
             columns={certColumns}
             data={certificates}
@@ -312,7 +316,7 @@ const CourseReportsPage = () => {
           >
             <DataTable.Table />
             <DataTable.EmptyTable content="No certificates issued" />
-            <DataTable.TableFooter />
+            {certificates.length > PAGE_SIZE && <DataTable.TableFooter />}
           </DataTable>
         </>
       )}

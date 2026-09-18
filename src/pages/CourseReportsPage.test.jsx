@@ -119,4 +119,21 @@ describe('CourseReportsPage', () => {
     expect(screen.getAllByText(/^Grade Report \d+$/)).toHaveLength(10);
     expect(screen.getAllByTestId('table-footer').length).toBeGreaterThan(0);
   });
+
+  it('hides the page control when a table fits on one page', async () => {
+    getCourseReportDownloads.mockResolvedValue({
+      results: [{
+        task_id: 't1',
+        report_type: 'grade_csv',
+        report_label: 'Grade Report',
+        state: 'SUCCESS',
+        created: '2026-05-04T09:07:00+00:00',
+        download_url: 'https://s3/g.csv',
+      }],
+    });
+    getCourseCertificates.mockResolvedValue({ results: [] });
+    renderPage();
+    await screen.findByText('No certificates issued');
+    expect(screen.queryByTestId('table-footer')).not.toBeInTheDocument();
+  });
 });
