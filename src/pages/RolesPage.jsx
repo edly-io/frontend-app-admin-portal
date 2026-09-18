@@ -6,6 +6,7 @@ import {
 
 import { getRoles, changeRole } from '../data/api';
 import CourseIdField from '../components/CourseIdField';
+import usePageTitle from '../hooks/usePageTitle';
 
 // Role slugs are the wire values (submitted as-is); this is display-only.
 const ROLE_LABELS = {
@@ -15,7 +16,21 @@ const ROLE_LABELS = {
 };
 const humanizeRole = (role) => ROLE_LABELS[role] || role;
 
+/**
+ * Backend descriptions are prefixed with their own role name ("Course Admin.
+ * Full control..."), which for limited_staff matches our label exactly and
+ * renders as "Limited Staff: Limited Staff. ...". Drop the prefix when it
+ * repeats the label we already show.
+ */
+const describeRole = (role, description = '') => {
+  const label = humanizeRole(role);
+  return description.startsWith(`${label}.`)
+    ? description.slice(label.length + 1).trim()
+    : description;
+};
+
 const RolesPage = () => {
+  usePageTitle('Staff & Roles');
   const [roles, setRoles] = useState([]);
   const [courseId, setCourseId] = useState('');
   const [identifier, setIdentifier] = useState('');
@@ -63,8 +78,6 @@ const RolesPage = () => {
     }
   };
 
-  const selectedRole = roles.find((r) => r.role === role);
-
   return (
     <Container size="lg" className="py-4">
       <h1 className="mb-3">Staff &amp; Roles</h1>
@@ -80,7 +93,7 @@ const RolesPage = () => {
         <Card.Section title="Grantable roles">
           <ul className="mb-0">
             {roles.map((r) => (
-              <li key={r.role}><strong>{humanizeRole(r.role)}</strong>: {r.description}</li>
+              <li key={r.role}><strong>{humanizeRole(r.role)}</strong>: {describeRole(r.role, r.description)}</li>
             ))}
           </ul>
         </Card.Section>
@@ -97,6 +110,7 @@ const RolesPage = () => {
         <Form.Group controlId="role-identifier">
           <Form.Label>User (email or username)</Form.Label>
           <Form.Control
+            placeholder="name@school.edu or username"
             value={identifier}
             onChange={(e) => setIdentifier(e.target.value)}
             isInvalid={!!fieldErrors.identifier}
@@ -108,7 +122,7 @@ const RolesPage = () => {
           <Form.Control as="select" value={role} onChange={(e) => setRole(e.target.value)}>
             {roles.map((r) => <option key={r.role} value={r.role}>{humanizeRole(r.role)}</option>)}
           </Form.Control>
-          {selectedRole && <Form.Text>{selectedRole.description}</Form.Text>}
+
         </Form.Group>
         <Form.Group>
           <Form.Label>Action</Form.Label>

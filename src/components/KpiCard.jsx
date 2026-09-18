@@ -46,6 +46,9 @@ const DeltaBadge = ({ delta }) => {
     >
       <span aria-hidden="true">{arrow}</span>
       {!isPositive && !isNegative ? null : <span aria-hidden="true">{abs}%</span>}
+      <span aria-hidden="true" style={{ color: 'var(--pgn-color-gray-500, #6B757F)', fontWeight: 400 }}>
+        vs last month
+      </span>
     </span>
   );
 };

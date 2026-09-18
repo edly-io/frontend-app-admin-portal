@@ -7,6 +7,14 @@ import {
 
 import { updateEnrollments } from '../data/api';
 import CourseIdField from '../components/CourseIdField';
+import usePageTitle from '../hooks/usePageTitle';
+import EmptyState from '../components/EmptyState';
+
+/** "1 learner" / "3 learners" / "No learners added yet". */
+const learnerCount = (n) => {
+  if (n === 0) { return 'No learners added yet'; }
+  return `${n} learner${n === 1 ? '' : 's'}`;
+};
 
 const parseIdentifiers = (raw) => raw
   .split(/[\n,]+/)
@@ -14,8 +22,8 @@ const parseIdentifiers = (raw) => raw
   .filter(Boolean);
 
 const ResultCell = ({ row }) => (row.original.success
-  ? <Badge variant="success">success</Badge>
-  : <Badge variant="danger">{row.original.error_message || 'failed'}</Badge>);
+  ? <Badge variant="success">Succeeded</Badge>
+  : <Badge variant="danger">{row.original.error_message || 'Failed'}</Badge>);
 ResultCell.propTypes = {
   row: PropTypes.shape({
     original: PropTypes.shape({
@@ -32,6 +40,7 @@ const RESULT_COLUMNS = [
 ];
 
 const EnrollPage = () => {
+  usePageTitle('Enrollment');
   const [courseId, setCourseId] = useState('');
   const [identifiersRaw, setIdentifiersRaw] = useState('');
   const [emailStudents, setEmailStudents] = useState(false);
@@ -91,7 +100,7 @@ const EnrollPage = () => {
   return (
     <Container size="lg" className="py-4">
       <h1 className="mb-3">Enrollment</h1>
-      <p className="text-muted">
+      <p className="text-muted mb-4">
         Enroll or unenroll one or many learners (email or username) in a published course run.
       </p>
 
@@ -115,7 +124,7 @@ const EnrollPage = () => {
           onChange={(e) => setIdentifiersRaw(e.target.value)}
           isInvalid={!!fieldErrors.identifiers}
         />
-        <Form.Text>{identifiers.length} identifier(s)</Form.Text>
+        <Form.Text>{learnerCount(identifiers.length)}</Form.Text>
         {fieldErrors.identifiers && (
           <Form.Control.Feedback type="invalid">{fieldErrors.identifiers}</Form.Control.Feedback>
         )}
@@ -130,8 +139,18 @@ const EnrollPage = () => {
 
       <Form.Group>
         <Form.Label>Reason (optional)</Form.Label>
-        <Form.Control value={reason} onChange={(e) => setReason(e.target.value)} />
+        <Form.Control
+          placeholder="e.g. Course transfer, re-enrollment after refund"
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+        />
       </Form.Group>
+
+      {!canSubmit && !submitting && (
+        <p className="text-muted small mb-2">
+          Add a course run and at least one learner to continue.
+        </p>
+      )}
 
       <ActionRow>
         <Button variant="primary" disabled={!canSubmit} onClick={() => run('enroll')}>
@@ -153,7 +172,7 @@ const EnrollPage = () => {
               {' '}
               {results.action === 'enroll' ? 'enrolled' : 'unenrolled'} successfully
               {results.failed_operations ? (
-                <>, <strong>{results.failed_operations}</strong> failed — see the table below.</>
+                <>, <strong>{results.failed_operations}</strong> failed. See the table below.</>
               ) : '.'}
             </span>
           </Alert>
@@ -164,14 +183,16 @@ const EnrollPage = () => {
             itemCount={(results.results || []).length}
           >
             <DataTable.Table />
-            <DataTable.EmptyTable content="No results" />
+            <DataTable.EmptyTable content={<EmptyState message="No results" />} />
           </DataTable>
         </div>
       )}
 
       <ModalDialog title="Confirm unenroll" isOpen={isUnenrollOpen} onClose={closeUnenroll} hasCloseButton={false}>
         <ModalDialog.Header>
-          <ModalDialog.Title>Unenroll {identifiers.length} learner(s)?</ModalDialog.Title>
+          <ModalDialog.Title>
+            Unenroll {identifiers.length} {identifiers.length === 1 ? 'learner' : 'learners'}?
+          </ModalDialog.Title>
         </ModalDialog.Header>
         <ModalDialog.Body>
           They will be removed from the course roster. Submission and grade data is retained.

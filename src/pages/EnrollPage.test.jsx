@@ -50,7 +50,7 @@ describe('EnrollPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Unenroll' }));
 
     // Confirmation modal
-    expect(await screen.findByText('Unenroll 2 learner(s)?')).toBeInTheDocument();
+    expect(await screen.findByText('Unenroll 2 learners?')).toBeInTheDocument();
     const buttons = screen.getAllByRole('button', { name: 'Unenroll' });
     fireEvent.click(buttons[buttons.length - 1]);
     await waitFor(() => expect(updateEnrollments).toHaveBeenCalledWith('unenroll', expect.any(Object)));

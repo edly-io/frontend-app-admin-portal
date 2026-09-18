@@ -11,7 +11,6 @@ import {
 import { getMe } from './data/api';
 import NotFound from './components/NotFound';
 import UsersPage from './pages/UsersPage';
-import CreateUserPage from './pages/CreateUserPage';
 import EnrollPage from './pages/EnrollPage';
 import RolesPage from './pages/RolesPage';
 import ReportingLayout from './pages/ReportingLayout';
@@ -26,7 +25,7 @@ const Header = () => {
     <Navbar expand="lg" className="border-bottom mb-2" bg="white">
       <Container size="xl">
         <Navbar.Brand as={NavLink} to="/">
-          <img className="logo-image" src={config.LOGO_URL} alt={config.SITE_NAME || 'Open edX'} height="40" />
+          <img className="logo-image" src={config.LOGO_URL} alt={config.SITE_NAME || 'Open edX'} height="48" />
         </Navbar.Brand>
         <Nav className="mr-auto">
           <Nav.Link as={NavLink} to="/" end>Users</Nav.Link>
@@ -66,10 +65,10 @@ const App = () => {
 
   useEffect(() => {
     // Keep the tab title neutral until we've confirmed admin access, so a
-    // blocked user never even sees "Admin Portal" in the tab.
-    if (gate === 'ok') {
-      document.title = 'Admin Portal';
-    } else if (gate === 'blocked') {
+    // blocked user never even sees "Admin Portal" in the tab. Once the gate
+    // opens each page sets its own title via usePageTitle, so App stays out of
+    // the way: a parent effect would otherwise run last and overwrite it.
+    if (gate === 'blocked') {
       document.title = 'Page not found';
     }
   }, [gate]);
@@ -88,11 +87,12 @@ const App = () => {
 
   return (
     <>
+      <a className="skip-to-content" href="#main-content">Skip to main content</a>
       <Header />
       <main id="main-content">
         <Routes>
           <Route path="/" element={<UsersPage />} />
-          <Route path="/users/new" element={<CreateUserPage />} />
+          <Route path="/users/new" element={<UsersPage createOpen />} />
           <Route path="/enroll" element={<EnrollPage />} />
           <Route path="/staff" element={<RolesPage />} />
           <Route path="/reporting" element={<ReportingLayout />}>

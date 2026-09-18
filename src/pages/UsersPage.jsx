@@ -2,7 +2,7 @@ import React, {
   useCallback, useEffect, useMemo, useState,
 } from 'react';
 import PropTypes from 'prop-types';
-import { Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import {
   Container, DataTable, Alert, Spinner, Form, Button, Pagination,
   ModalDialog, ActionRow, Toast, useToggle,
@@ -11,8 +11,38 @@ import {
 import { getUsers, setUserActive } from '../data/api';
 import StatusBadge from '../components/StatusBadge';
 import useDebouncedEffect from '../hooks/useDebouncedEffect';
+import usePageTitle from '../hooks/usePageTitle';
+import EmptyState from '../components/EmptyState';
+import CreateUserModal from '../components/CreateUserModal';
 
 const PAGE_SIZE = 25;
+
+/**
+ * Platform service accounts. These are not people, and deactivating one breaks
+ * the instance, so they never appear in the customer-facing directory.
+ *
+ * Filtering happens client-side because the endpoint has no exclude parameter.
+ * The consequence is that `data.count`, and so the page count, still includes
+ * them, which can leave a page of 25 showing fewer rows. Moving the filter into
+ * `UsersView` would fix that and is the right long-term home for it.
+ */
+const SERVICE_ACCOUNTS = new Set([
+  'login_service_user',
+  'cms',
+  'lms',
+  'ecommerce_worker',
+  'discovery_worker',
+  'credentials_worker',
+  'insights_worker',
+  'veda_service_user',
+  'retirement_service_worker',
+  'staff_service_user',
+]);
+const isServiceAccount = (user) => SERVICE_ACCOUNTS.has(user.username);
+
+// Hold roughly a full page of rows while loading so the page doesn't collapse
+// and then jump when results land.
+const TABLE_LOADING_MIN_HEIGHT = { minHeight: '20rem' };
 
 const STATUS_OPTIONS = [
   { label: 'All statuses', value: '' },
@@ -34,6 +64,20 @@ const rowShape = PropTypes.shape({
 
 const StatusCell = ({ row }) => <StatusBadge status={row.original.status} />;
 StatusCell.propTypes = { row: rowShape };
+
+// Accounts created by services (cms, login_service_user) carry no profile name.
+const NameCell = ({ row }) => (row.original.name
+  ? <span>{row.original.name}</span>
+  : <span className="text-muted">Not set</span>);
+NameCell.propTypes = { row: rowShape };
+
+// C7: the LMS sends lowercase role slugs; don't show the wire value.
+const ROLE_LABELS = { admin: 'Admin', staff: 'Staff', learner: 'Learner' };
+const RoleCell = ({ row }) => {
+  const role = row.original.lms_role;
+  return <span>{ROLE_LABELS[role] || role}</span>;
+};
+RoleCell.propTypes = { row: rowShape };
 
 // null means the backend couldn't compute it (standalone/non-LMS deployment).
 const EnrollmentsCell = ({ row }) => (
@@ -61,7 +105,9 @@ ActionsCell.propTypes = {
   column: PropTypes.shape({ onAction: PropTypes.func }).isRequired,
 };
 
-const UsersPage = () => {
+const UsersPage = ({ createOpen = false }) => {
+  usePageTitle('Users');
+  const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('');
   const [page, setPage] = useState(1);
@@ -73,6 +119,7 @@ const UsersPage = () => {
   const [pending, setPending] = useState(null); // { user, activate }
   const [submitting, setSubmitting] = useState(false);
   const [isConfirmOpen, openConfirm, closeConfirm] = useToggle(false);
+  const [isCreateOpen, openCreate, closeCreate] = useToggle(createOpen);
   const [toast, setToast] = useState('');
 
   const fetchUsers = useCallback(async () => {
@@ -118,25 +165,25 @@ const UsersPage = () => {
 
   const columns = useMemo(() => [
     { Header: 'Username', accessor: 'username' },
-    { Header: 'Name', accessor: 'name' },
+    { Header: 'Name', accessor: 'name', Cell: NameCell },
     { Header: 'Email', accessor: 'email' },
     { Header: 'Status', accessor: 'status', Cell: StatusCell },
-    { Header: 'LMS Role', accessor: 'lms_role' },
+    { Header: 'LMS role', accessor: 'lms_role', Cell: RoleCell },
     { Header: 'Enrollments', accessor: 'enrollment_count', Cell: EnrollmentsCell },
     {
       Header: 'Actions', id: 'actions', onAction: askConfirm, Cell: ActionsCell,
     },
   ], [askConfirm]);
 
+  const visibleUsers = useMemo(
+    () => (data.results || []).filter((u) => !isServiceAccount(u)),
+    [data.results],
+  );
   const pageCount = Math.max(1, Math.ceil(data.count / PAGE_SIZE));
   const confirmLabel = pending?.activate ? 'Reactivate' : 'Deactivate';
 
   return (
     <Container size="xl" className="py-4">
-      <div className="d-flex justify-content-between align-items-center mb-3">
-        <h1 className="mb-0">Users</h1>
-        <Button as={Link} to="/users/new" variant="primary">Create user</Button>
-      </div>
 
       {error && (
         <Alert variant="danger" dismissible onClose={() => setError(null)}>
@@ -146,34 +193,48 @@ const UsersPage = () => {
         </Alert>
       )}
 
-      <div className="d-flex flex-wrap align-items-end mb-3" style={{ gap: '1rem' }}>
-        <Form.Group className="mb-0">
-          <Form.Label>Search</Form.Label>
+      {/* Title left, controls right, one row. The field labels move into
+          placeholders with an aria-label behind them: stacked labels beside an
+          h1 make the row tall and push the controls off the title's baseline,
+          and placeholder-only is the usual shape for an inline toolbar. The row
+          wraps to two lines below ~900px rather than crushing the inputs. */}
+      <div
+        className="d-flex flex-wrap align-items-center justify-content-between mb-3"
+        style={{ gap: '1rem' }}
+      >
+        <h1 className="mb-0">Users</h1>
+        <div className="d-flex flex-wrap align-items-center" style={{ gap: '.75rem' }}>
           <Form.Control
             type="text"
-            placeholder="name, username or email"
+            aria-label="Search users"
+            placeholder="Search name, username or email"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            style={{ minWidth: '22rem' }}
+            style={{ minWidth: '18rem' }}
           />
-        </Form.Group>
-        <Form.Group className="mb-0" controlId="status-filter">
-          <Form.Label>Status</Form.Label>
-          <Form.Control as="select" value={status} onChange={(e) => setStatus(e.target.value)}>
+          <Form.Control
+            as="select"
+            id="status-filter"
+            aria-label="Filter by status"
+            value={status}
+            onChange={(e) => setStatus(e.target.value)}
+            style={{ width: 'auto' }}
+          >
             {STATUS_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
           </Form.Control>
-        </Form.Group>
+          <Button variant="primary" onClick={openCreate}>Create user</Button>
+        </div>
       </div>
 
       {loading ? (
-        <div className="d-flex justify-content-center py-5">
+        <div className="d-flex justify-content-center align-items-center" style={TABLE_LOADING_MIN_HEIGHT}>
           <Spinner animation="border" screenReaderText="Loading users" />
         </div>
       ) : (
         <>
-          <DataTable columns={columns} data={data.results} itemCount={data.results.length}>
+          <DataTable columns={columns} data={visibleUsers} itemCount={visibleUsers.length}>
             <DataTable.Table />
-            <DataTable.EmptyTable content="No users found" />
+            <DataTable.EmptyTable content={<EmptyState message="No users found" hint="Try a different name, username or email, or clear the status filter." />} />
           </DataTable>
           {pageCount > 1 && (
             <Pagination
@@ -186,6 +247,17 @@ const UsersPage = () => {
           )}
         </>
       )}
+
+      <CreateUserModal
+        isOpen={isCreateOpen}
+        onClose={() => {
+          closeCreate();
+          // /users/new deep-links straight into the modal; closing it should
+          // leave the admin on the directory, not on a URL with no dialog.
+          if (createOpen) { navigate('/', { replace: true }); }
+        }}
+        onCreated={(user) => { setToast(`${user.username} created.`); fetchUsers(); }}
+      />
 
       <ModalDialog title="Confirm" isOpen={isConfirmOpen} onClose={closeConfirm} hasCloseButton={false}>
         <ModalDialog.Header>
@@ -213,6 +285,10 @@ const UsersPage = () => {
       <Toast onClose={() => setToast('')} show={!!toast}>{toast}</Toast>
     </Container>
   );
+};
+
+UsersPage.propTypes = {
+  createOpen: PropTypes.bool,
 };
 
 export default UsersPage;

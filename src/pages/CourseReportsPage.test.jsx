@@ -119,4 +119,58 @@ describe('CourseReportsPage', () => {
     expect(screen.getAllByText(/^Grade Report \d+$/)).toHaveLength(10);
     expect(screen.getAllByTestId('table-footer').length).toBeGreaterThan(0);
   });
+
+  it('hides the page control when a table fits on one page', async () => {
+    getCourseReportDownloads.mockResolvedValue({
+      results: [{
+        task_id: 't1',
+        report_type: 'grade_csv',
+        report_label: 'Grade Report',
+        state: 'SUCCESS',
+        created: '2026-05-04T09:07:00+00:00',
+        download_url: 'https://s3/g.csv',
+      }],
+    });
+    getCourseCertificates.mockResolvedValue({ results: [] });
+    renderPage();
+    await screen.findByText('No certificates issued');
+    expect(screen.queryByTestId('table-footer')).not.toBeInTheDocument();
+  });
+
+  it('drops back to page 1 when a search narrows the downloads below one page', async () => {
+    const rows = Array.from({ length: 12 }, (_, i) => ({
+      task_id: `t${i}`,
+      report_type: 'grade_csv',
+      report_label: `Grade Report ${i}`,
+      state: 'SUCCESS',
+      created: '2026-05-04T09:07:00+00:00',
+      download_url: `https://s3/g${i}.csv`,
+    }));
+    getCourseReportDownloads.mockResolvedValue({ results: rows });
+    renderPage();
+    await screen.findByText('Grade Report 0');
+
+    fireEvent.click(screen.getByLabelText('Next, Page 2'));
+    expect(await screen.findByText('Grade Report 10')).toBeInTheDocument();
+
+    // Only 1, 10 and 11 match, so the table no longer has a page 2 to sit on.
+    fireEvent.change(screen.getByLabelText('Search generated reports'), { target: { value: 'Report 1' } });
+
+    expect(await screen.findByText('Grade Report 1')).toBeInTheDocument();
+    expect(screen.getAllByText(/^Grade Report \d+$/)).toHaveLength(3);
+  });
+
+  it('separates a filtered-empty table from a truly empty one', async () => {
+    renderPage();
+    await screen.findByText('Grade Report');
+    expect(screen.getByText('No certificates issued')).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText('Search generated reports'), { target: { value: 'zzz' } });
+    expect(await screen.findByText('No reports match the search criteria')).toBeInTheDocument();
+    expect(screen.queryByText('No reports yet')).not.toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText('Search certificates'), { target: { value: 'zzz' } });
+    expect(await screen.findByText('No certificates match the search criteria')).toBeInTheDocument();
+    expect(screen.queryByText('No certificates issued')).not.toBeInTheDocument();
+  });
 });
