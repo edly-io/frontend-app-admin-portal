@@ -160,6 +160,22 @@ describe('CourseReportsPage', () => {
     expect(screen.getAllByText(/^Grade Report \d+$/)).toHaveLength(3);
   });
 
+  it('drops the empty state when a table gains its first row', async () => {
+    // Both tables start empty, so both keyed on the same row count. The
+    // duplicate key used to leave the empty Downloads table mounted next to the
+    // one holding the new report.
+    getCourseReportDownloads.mockResolvedValueOnce({ results: [] });
+    renderPage();
+    await screen.findByText('No reports yet');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Generate report' }));
+    fireEvent.click(await screen.findByText('Grade Report'));
+
+    await waitFor(() => expect(screen.getByText('Ready')).toBeInTheDocument());
+    expect(screen.queryByText('No reports yet')).not.toBeInTheDocument();
+    expect(screen.getAllByRole('table')).toHaveLength(2);
+  });
+
   it('separates a filtered-empty table from a truly empty one', async () => {
     renderPage();
     await screen.findByText('Grade Report');
