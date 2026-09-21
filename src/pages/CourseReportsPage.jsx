@@ -292,7 +292,11 @@ const CourseReportsPage = () => {
   // no control left to get back. Keying each table on its search term and page
   // count remounts it at page 1 whenever the pagination shape changes, while an
   // ordinary poll that leaves the shape alone still leaves the page put.
-  const tableKey = (search, rowCount) => `${search}|${Math.ceil(rowCount / TABLE_PAGE_SIZE)}`;
+  // The `name` is part of the key because both tables are siblings in one
+  // children array: without it two empty tables would both key on `|0`, and the
+  // duplicate key makes React leave the stale table mounted when one of them
+  // gains its first row.
+  const tableKey = (name, search, rowCount) => `${name}|${search}|${Math.ceil(rowCount / TABLE_PAGE_SIZE)}`;
 
   const visibleDownloads = useMemo(
     () => downloads.filter((r) => matches(downloadSearch, r.report_label, STATE_LABELS[r.state] || r.state)),
@@ -387,7 +391,7 @@ const CourseReportsPage = () => {
         <>
           <h2 className="mb-2" style={SECTION_LABEL_STYLE}>Downloads</h2>
           <DataTable
-            key={tableKey(downloadSearch, visibleDownloads.length)}
+            key={tableKey('downloads', downloadSearch, visibleDownloads.length)}
             isPaginated
             initialState={{ pageIndex: 0, pageSize: TABLE_PAGE_SIZE }}
             initialTableOptions={{ autoResetPage: false }}
@@ -416,7 +420,7 @@ const CourseReportsPage = () => {
             </div>
           </div>
           <DataTable
-            key={tableKey(certSearch, visibleCertificates.length)}
+            key={tableKey('certificates', certSearch, visibleCertificates.length)}
             isPaginated
             initialState={{ pageIndex: 0, pageSize: TABLE_PAGE_SIZE }}
             initialTableOptions={{ autoResetPage: false }}
