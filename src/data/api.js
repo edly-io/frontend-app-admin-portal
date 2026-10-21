@@ -33,6 +33,14 @@ export async function setUserActive(username, active) {
   return data;
 }
 
+/** Re-send the set-password email to a pending user whose invite link expired. */
+export async function resendInvite(username) {
+  const { data } = await client().post(
+    `${apiBaseUrl()}/users/${encodeURIComponent(username)}/resend-invite/`,
+  );
+  return data;
+}
+
 /**
  * Enroll or unenroll identifiers in a course run.
  * `action`: 'enroll' | 'unenroll'.

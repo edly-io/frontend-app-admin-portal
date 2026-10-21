@@ -4,21 +4,22 @@ import {
 } from '../test-utils';
 
 import UsersPage from './UsersPage';
-import { getUsers, setUserActive } from '../data/api';
+import { getUsers, resendInvite, setUserActive } from '../data/api';
 
 jest.mock('../data/api', () => ({
   getUsers: jest.fn(),
   setUserActive: jest.fn(),
+  resendInvite: jest.fn(),
 }));
 
 const USERS = {
   count: 2,
   results: [
     {
-      id: 1, username: 'alice', name: 'Alice A', email: 'alice@e.com', is_active: true, status: 'active', lms_role: 'learner', enrollment_count: 3,
+      id: 1, username: 'alice', name: 'Alice A', email: 'alice@e.com', is_active: true, status: 'active', lms_role: 'learner', enrollment_count: 3, date_joined: '2026-03-05T12:00:00Z', invite_sent_at: null, invite_expired: false,
     },
     {
-      id: 2, username: 'bob', name: 'Bob B', email: 'bob@e.com', is_active: false, status: 'disabled', lms_role: 'staff', enrollment_count: null,
+      id: 2, username: 'bob', name: 'Bob B', email: 'bob@e.com', is_active: false, status: 'disabled', lms_role: 'staff', enrollment_count: null, date_joined: '2026-03-06T12:00:00Z', invite_sent_at: null, invite_expired: false,
     },
   ],
 };
@@ -29,6 +30,7 @@ beforeEach(() => {
   jest.clearAllMocks();
   getUsers.mockResolvedValue(USERS);
   setUserActive.mockResolvedValue({});
+  resendInvite.mockResolvedValue({});
 });
 
 describe('UsersPage', () => {
@@ -52,7 +54,9 @@ describe('UsersPage', () => {
     const table = screen.getByRole('table');
     expect(within(table).getByText('Enrollments')).toBeInTheDocument();
     expect(within(table).getByText('3')).toBeInTheDocument();
-    expect(within(table).getByText('—')).toBeInTheDocument();
+    // bob's null enrollment count is the only dash in that column's row; the
+    // Invite sent column also shows dashes for non-pending users.
+    expect(within(table).getAllByText('—').length).toBeGreaterThan(0);
   });
 
   it('passes the search term to the API', async () => {
@@ -84,5 +88,55 @@ describe('UsersPage', () => {
     renderPage();
     await screen.findByText('bob');
     expect(screen.getByRole('button', { name: 'Reactivate' })).toBeInTheDocument();
+  });
+
+  describe('pending users and invite resend', () => {
+    const PENDING = {
+      count: 2,
+      results: [
+        {
+          id: 3, username: 'carol', name: 'Carol C', email: 'carol@e.com', is_active: false, status: 'pending', lms_role: 'learner', enrollment_count: 0, date_joined: '2026-03-01T12:00:00Z', invite_sent_at: '2026-03-02T12:00:00Z', invite_expired: true,
+        },
+        {
+          id: 4, username: 'dave', name: 'Dave D', email: 'dave@e.com', is_active: false, status: 'pending', lms_role: 'learner', enrollment_count: 0, date_joined: '2026-03-01T12:00:00Z', invite_sent_at: '2026-03-02T12:00:00Z', invite_expired: false,
+        },
+      ],
+    };
+
+    it('shows the resend button only when the invite has expired', async () => {
+      getUsers.mockResolvedValue(PENDING);
+      renderPage();
+      await screen.findByText('carol');
+      expect(screen.getAllByRole('button', { name: 'Resend password reset email' })).toHaveLength(1);
+    });
+
+    it('does not show the resend button for active or disabled users', async () => {
+      renderPage();
+      await screen.findByText('alice');
+      expect(screen.queryByRole('button', { name: 'Resend password reset email' })).not.toBeInTheDocument();
+    });
+
+    it('resends after confirmation and shows the toast', async () => {
+      getUsers.mockResolvedValue(PENDING);
+      renderPage();
+      await screen.findByText('carol');
+      fireEvent.click(screen.getByRole('button', { name: 'Resend password reset email' }));
+      expect(await screen.findByText('Resend carol?')).toBeInTheDocument();
+      fireEvent.click(screen.getByRole('button', { name: 'Resend' }));
+      await waitFor(() => expect(resendInvite).toHaveBeenCalledWith('carol'));
+      expect(await screen.findByText('Password reset email sent to carol@e.com.')).toBeInTheDocument();
+      await waitFor(() => expect(getUsers).toHaveBeenCalledTimes(2));
+    });
+
+    it('renders the Created and Invite sent columns', async () => {
+      getUsers.mockResolvedValue({ count: 2, results: [PENDING.results[0], USERS.results[0]] });
+      renderPage();
+      await screen.findByText('carol');
+      const table = screen.getByRole('table');
+      expect(within(table).getByText('Created')).toBeInTheDocument();
+      expect(within(table).getByText('Invite sent')).toBeInTheDocument();
+      expect(within(table).getByText('03/02/2026')).toBeInTheDocument();
+      expect(within(table).getByText('03/05/2026')).toBeInTheDocument();
+    });
   });
 });
