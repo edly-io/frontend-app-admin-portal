@@ -61,14 +61,26 @@ const rowShape = PropTypes.shape({
     lms_role: PropTypes.string,
     enrollment_count: PropTypes.number,
     date_joined: PropTypes.string,
-    invite_sent_at: PropTypes.string,
+    invite_expires_at: PropTypes.string,
     invite_expired: PropTypes.bool,
   }),
 }).isRequired;
 
-const StatusCell = ({ row }) => (
-  <StatusBadge status={row.original.status} inviteExpired={row.original.invite_expired} />
-);
+// Pending users show when their set-password link expires (or expired); null means no invite was recorded.
+const StatusCell = ({ row }) => {
+  const { status, invite_expired: expired, invite_expires_at: expiresAt } = row.original;
+  return (
+    // Tight line height keeps the stack no taller than the row's action buttons.
+    <div style={{ lineHeight: 1.1 }}>
+      <StatusBadge status={status} inviteExpired={expired} />
+      {status === 'pending' && expiresAt && (
+        <div className="text-muted" style={{ fontSize: '.6875rem' }}>
+          {expired ? 'Expired' : 'Expires'} {formatDate(expiresAt)}
+        </div>
+      )}
+    </div>
+  );
+};
 StatusCell.propTypes = { row: rowShape };
 
 // Accounts created by services (cms, login_service_user) carry no profile name.
@@ -95,13 +107,6 @@ const CreatedCell = ({ row }) => (
   <span>{row.original.date_joined ? formatDate(row.original.date_joined) : '—'}</span>
 );
 CreatedCell.propTypes = { row: rowShape };
-
-// Only pending users have an invite; null means none was recorded.
-const InviteSentCell = ({ row }) => {
-  const { status, invite_sent_at: sentAt } = row.original;
-  return <span>{status === 'pending' && sentAt ? formatDate(sentAt) : '—'}</span>;
-};
-InviteSentCell.propTypes = { row: rowShape };
 
 const ActionsCell = ({ row, column }) => {
   const user = row.original;
@@ -202,7 +207,6 @@ const UsersPage = ({ createOpen = false }) => {
     { Header: 'Email', accessor: 'email' },
     { Header: 'Status', accessor: 'status', Cell: StatusCell },
     { Header: 'Created', accessor: 'date_joined', Cell: CreatedCell },
-    { Header: 'Invite sent', accessor: 'invite_sent_at', Cell: InviteSentCell },
     { Header: 'LMS role', accessor: 'lms_role', Cell: RoleCell },
     { Header: 'Enrollments', accessor: 'enrollment_count', Cell: EnrollmentsCell },
     {

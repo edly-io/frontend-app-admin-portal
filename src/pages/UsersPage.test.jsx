@@ -16,10 +16,10 @@ const USERS = {
   count: 2,
   results: [
     {
-      id: 1, username: 'alice', name: 'Alice A', email: 'alice@e.com', is_active: true, status: 'active', lms_role: 'learner', enrollment_count: 3, date_joined: '2026-03-05T12:00:00Z', invite_sent_at: null, invite_expired: false,
+      id: 1, username: 'alice', name: 'Alice A', email: 'alice@e.com', is_active: true, status: 'active', lms_role: 'learner', enrollment_count: 3, date_joined: '2026-03-05T12:00:00Z', invite_expires_at: null, invite_expired: false,
     },
     {
-      id: 2, username: 'bob', name: 'Bob B', email: 'bob@e.com', is_active: false, status: 'disabled', lms_role: 'staff', enrollment_count: null, date_joined: '2026-03-06T12:00:00Z', invite_sent_at: null, invite_expired: false,
+      id: 2, username: 'bob', name: 'Bob B', email: 'bob@e.com', is_active: false, status: 'disabled', lms_role: 'staff', enrollment_count: null, date_joined: '2026-03-06T12:00:00Z', invite_expires_at: null, invite_expired: false,
     },
   ],
 };
@@ -54,8 +54,7 @@ describe('UsersPage', () => {
     const table = screen.getByRole('table');
     expect(within(table).getByText('Enrollments')).toBeInTheDocument();
     expect(within(table).getByText('3')).toBeInTheDocument();
-    // bob's null enrollment count is the only dash in that column's row; the
-    // Invite sent column also shows dashes for non-pending users.
+    // bob's null enrollment count renders as a dash.
     expect(within(table).getAllByText('—').length).toBeGreaterThan(0);
   });
 
@@ -95,10 +94,10 @@ describe('UsersPage', () => {
       count: 2,
       results: [
         {
-          id: 3, username: 'carol', name: 'Carol C', email: 'carol@e.com', is_active: false, status: 'pending', lms_role: 'learner', enrollment_count: 0, date_joined: '2026-03-01T12:00:00Z', invite_sent_at: '2026-03-02T12:00:00Z', invite_expired: true,
+          id: 3, username: 'carol', name: 'Carol C', email: 'carol@e.com', is_active: false, status: 'pending', lms_role: 'learner', enrollment_count: 0, date_joined: '2026-03-01T12:00:00Z', invite_expires_at: '2026-03-09T12:00:00Z', invite_expired: true,
         },
         {
-          id: 4, username: 'dave', name: 'Dave D', email: 'dave@e.com', is_active: false, status: 'pending', lms_role: 'learner', enrollment_count: 0, date_joined: '2026-03-01T12:00:00Z', invite_sent_at: '2026-03-02T12:00:00Z', invite_expired: false,
+          id: 4, username: 'dave', name: 'Dave D', email: 'dave@e.com', is_active: false, status: 'pending', lms_role: 'learner', enrollment_count: 0, date_joined: '2026-03-01T12:00:00Z', invite_expires_at: '2026-03-09T12:00:00Z', invite_expired: false,
         },
       ],
     };
@@ -116,6 +115,13 @@ describe('UsersPage', () => {
       await screen.findByText('carol');
       expect(screen.getAllByText('Invitation expired')).toHaveLength(1);
       expect(screen.getAllByText('Pending invitation').length).toBeGreaterThan(0);
+    });
+
+    it('says Expires while the invite is still valid', async () => {
+      getUsers.mockResolvedValue({ count: 1, results: [PENDING.results[1]] });
+      renderPage();
+      await screen.findByText('dave');
+      expect(screen.getByText('Expires 03/09/2026')).toBeInTheDocument();
     });
 
     it('does not show the resend button for active or disabled users', async () => {
@@ -136,14 +142,14 @@ describe('UsersPage', () => {
       await waitFor(() => expect(getUsers).toHaveBeenCalledTimes(2));
     });
 
-    it('renders the Created and Invite sent columns', async () => {
+    it('shows the expiry date under the status of pending users only', async () => {
       getUsers.mockResolvedValue({ count: 2, results: [PENDING.results[0], USERS.results[0]] });
       renderPage();
       await screen.findByText('carol');
       const table = screen.getByRole('table');
       expect(within(table).getByText('Created')).toBeInTheDocument();
-      expect(within(table).getByText('Invite sent')).toBeInTheDocument();
-      expect(within(table).getByText('03/02/2026')).toBeInTheDocument();
+      expect(within(table).getByText('Expired 03/09/2026')).toBeInTheDocument();
+      expect(within(table).queryByText(/Expires/)).not.toBeInTheDocument();
       expect(within(table).getByText('03/05/2026')).toBeInTheDocument();
     });
   });
