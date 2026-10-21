@@ -49,6 +49,7 @@ const STATUS_OPTIONS = [
   { label: 'All statuses', value: '' },
   { label: 'Active', value: 'active' },
   { label: 'Pending invitation', value: 'pending' },
+  { label: 'Invitation expired', value: 'invitation_expired' },
   { label: 'Disabled', value: 'disabled' },
 ];
 

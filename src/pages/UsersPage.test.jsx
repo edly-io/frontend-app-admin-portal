@@ -72,6 +72,14 @@ describe('UsersPage', () => {
     await waitFor(() => expect(getUsers).toHaveBeenCalledWith(expect.objectContaining({ status: 'disabled' })));
   });
 
+  it('offers an Invitation expired filter and passes it to the API', async () => {
+    renderPage();
+    await screen.findByText('alice');
+    expect(screen.getByRole('option', { name: 'Invitation expired' })).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Filter by status'), { target: { value: 'invitation_expired' } });
+    await waitFor(() => expect(getUsers).toHaveBeenCalledWith(expect.objectContaining({ status: 'invitation_expired' })));
+  });
+
   it('deactivates an active user after confirmation', async () => {
     renderPage();
     await screen.findByText('alice');
@@ -113,8 +121,9 @@ describe('UsersPage', () => {
       getUsers.mockResolvedValue(PENDING);
       renderPage();
       await screen.findByText('carol');
-      expect(screen.getAllByText('Invitation expired')).toHaveLength(1);
-      expect(screen.getAllByText('Pending invitation').length).toBeGreaterThan(0);
+      const table = screen.getByRole('table');
+      expect(within(table).getAllByText('Invitation expired')).toHaveLength(1);
+      expect(within(table).getAllByText('Pending invitation').length).toBeGreaterThan(0);
     });
 
     it('says Expires while the invite is still valid', async () => {
