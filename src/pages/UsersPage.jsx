@@ -8,12 +8,13 @@ import {
   ModalDialog, ActionRow, Toast, useToggle,
 } from '@openedx/paragon';
 
-import { getUsers, setUserActive } from '../data/api';
+import { getUsers, resendInvite, setUserActive } from '../data/api';
 import StatusBadge from '../components/StatusBadge';
 import useDebouncedEffect from '../hooks/useDebouncedEffect';
 import usePageTitle from '../hooks/usePageTitle';
 import EmptyState from '../components/EmptyState';
 import CreateUserModal from '../components/CreateUserModal';
+import { formatDate } from '../utils/formatDate';
 
 const PAGE_SIZE = 25;
 
@@ -59,10 +60,27 @@ const rowShape = PropTypes.shape({
     status: PropTypes.string,
     lms_role: PropTypes.string,
     enrollment_count: PropTypes.number,
+    date_joined: PropTypes.string,
+    invite_expires_at: PropTypes.string,
+    invite_expired: PropTypes.bool,
   }),
 }).isRequired;
 
-const StatusCell = ({ row }) => <StatusBadge status={row.original.status} />;
+// Pending users show when their set-password link expires (or expired); null means no invite was recorded.
+const StatusCell = ({ row }) => {
+  const { status, invite_expired: expired, invite_expires_at: expiresAt } = row.original;
+  return (
+    // Tight line height keeps the stack no taller than the row's action buttons.
+    <div style={{ lineHeight: 1.1 }}>
+      <StatusBadge status={status} inviteExpired={expired} />
+      {status === 'pending' && expiresAt && (
+        <div className="text-muted" style={{ fontSize: '.6875rem' }}>
+          {expired ? 'Expired' : 'Expires'} {formatDate(expiresAt)}
+        </div>
+      )}
+    </div>
+  );
+};
 StatusCell.propTypes = { row: rowShape };
 
 // Accounts created by services (cms, login_service_user) carry no profile name.
@@ -85,19 +103,33 @@ const EnrollmentsCell = ({ row }) => (
 );
 EnrollmentsCell.propTypes = { row: rowShape };
 
+const CreatedCell = ({ row }) => (
+  <span>{row.original.date_joined ? formatDate(row.original.date_joined) : '—'}</span>
+);
+CreatedCell.propTypes = { row: rowShape };
+
 const ActionsCell = ({ row, column }) => {
   const user = row.original;
   if (user.status === 'disabled') {
     return (
-      <Button size="sm" variant="outline-primary" onClick={() => column.onAction(user, true)}>
-        Reactivate
-      </Button>
+      <ActionRow className="justify-content-center flex-nowrap">
+        <Button size="sm" variant="outline-primary" onClick={() => column.onAction(user, 'reactivate')}>
+          Reactivate
+        </Button>
+      </ActionRow>
     );
   }
   return (
-    <Button size="sm" variant="outline-danger" onClick={() => column.onAction(user, false)}>
-      Deactivate
-    </Button>
+    <ActionRow className="justify-content-center flex-nowrap">
+      {user.invite_expired && (
+        <Button size="sm" variant="outline-primary" className="text-nowrap" onClick={() => column.onAction(user, 'resend')}>
+          Resend Invitation
+        </Button>
+      )}
+      <Button size="sm" variant="outline-danger" className="text-nowrap" onClick={() => column.onAction(user, 'deactivate')}>
+        Deactivate
+      </Button>
+    </ActionRow>
   );
 };
 ActionsCell.propTypes = {
@@ -116,7 +148,7 @@ const UsersPage = ({ createOpen = false }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const [pending, setPending] = useState(null); // { user, activate }
+  const [pending, setPending] = useState(null); // { user, action }
   const [submitting, setSubmitting] = useState(false);
   const [isConfirmOpen, openConfirm, closeConfirm] = useToggle(false);
   const [isCreateOpen, openCreate, closeCreate] = useToggle(createOpen);
@@ -142,16 +174,22 @@ const UsersPage = ({ createOpen = false }) => {
   // Reset to page 1 whenever the filters change.
   useEffect(() => { setPage(1); }, [search, status]);
 
-  const askConfirm = useCallback((user, activate) => {
-    setPending({ user, activate });
+  const askConfirm = useCallback((user, action) => {
+    setPending({ user, action });
     openConfirm();
   }, [openConfirm]);
 
   const doConfirm = async () => {
     setSubmitting(true);
     try {
-      await setUserActive(pending.user.username, pending.activate);
-      setToast(`${pending.user.username} ${pending.activate ? 'reactivated' : 'deactivated'}.`);
+      if (pending.action === 'resend') {
+        await resendInvite(pending.user.username);
+        setToast(`Invitation resent to ${pending.user.email}.`);
+      } else {
+        const activate = pending.action === 'reactivate';
+        await setUserActive(pending.user.username, activate);
+        setToast(`${pending.user.username} ${activate ? 'reactivated' : 'deactivated'}.`);
+      }
       closeConfirm();
       setPending(null);
       fetchUsers();
@@ -168,10 +206,11 @@ const UsersPage = ({ createOpen = false }) => {
     { Header: 'Name', accessor: 'name', Cell: NameCell },
     { Header: 'Email', accessor: 'email' },
     { Header: 'Status', accessor: 'status', Cell: StatusCell },
+    { Header: 'Created', accessor: 'date_joined', Cell: CreatedCell },
     { Header: 'LMS role', accessor: 'lms_role', Cell: RoleCell },
     { Header: 'Enrollments', accessor: 'enrollment_count', Cell: EnrollmentsCell },
     {
-      Header: 'Actions', id: 'actions', onAction: askConfirm, Cell: ActionsCell,
+      Header: <div className="text-center">Actions</div>, id: 'actions', onAction: askConfirm, Cell: ActionsCell,
     },
   ], [askConfirm]);
 
@@ -180,7 +219,13 @@ const UsersPage = ({ createOpen = false }) => {
     [data.results],
   );
   const pageCount = Math.max(1, Math.ceil(data.count / PAGE_SIZE));
-  const confirmLabel = pending?.activate ? 'Reactivate' : 'Deactivate';
+  const CONFIRM_COPY = {
+    reactivate: { label: 'Reactivate', variant: 'primary', body: 'This restores login and course access for the account.' },
+    resend: { label: 'Resend', variant: 'primary', body: `This emails ${pending?.user.email} a new link to set a password. Older links stop working.` },
+    deactivate: { label: 'Deactivate', variant: 'danger', body: 'This blocks login and course access. Enrollments, submissions and grades are retained — this is not account deletion.' },
+  };
+  const confirm = CONFIRM_COPY[pending?.action || 'deactivate'];
+  const confirmLabel = confirm.label;
 
   return (
     <Container size="xl" className="py-4">
@@ -264,15 +309,13 @@ const UsersPage = ({ createOpen = false }) => {
           <ModalDialog.Title>{confirmLabel} {pending?.user.username}?</ModalDialog.Title>
         </ModalDialog.Header>
         <ModalDialog.Body>
-          {pending?.activate
-            ? 'This restores login and course access for the account.'
-            : 'This blocks login and course access. Enrollments, submissions and grades are retained — this is not account deletion.'}
+          {confirm.body}
         </ModalDialog.Body>
         <ModalDialog.Footer>
           <ActionRow>
             <Button variant="tertiary" onClick={closeConfirm} disabled={submitting}>Cancel</Button>
             <Button
-              variant={pending?.activate ? 'primary' : 'danger'}
+              variant={confirm.variant}
               onClick={doConfirm}
               disabled={submitting}
             >

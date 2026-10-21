@@ -14,12 +14,21 @@ export const STATUS_LABELS = {
   disabled: 'Disabled',
 };
 
-const StatusBadge = ({ status }) => (
-  <Badge variant={STATUS_VARIANTS[status] || 'light'}>{STATUS_LABELS[status] || status}</Badge>
-);
+// A pending user whose set-password link has lapsed needs a new invitation.
+const StatusBadge = ({ status, inviteExpired }) => {
+  if (status === 'pending' && inviteExpired) {
+    return <Badge variant="secondary">Invitation expired</Badge>;
+  }
+  return <Badge variant={STATUS_VARIANTS[status] || 'light'}>{STATUS_LABELS[status] || status}</Badge>;
+};
 
 StatusBadge.propTypes = {
   status: PropTypes.string.isRequired,
+  inviteExpired: PropTypes.bool,
+};
+
+StatusBadge.defaultProps = {
+  inviteExpired: false,
 };
 
 export default StatusBadge;
