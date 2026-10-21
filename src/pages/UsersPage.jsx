@@ -66,7 +66,9 @@ const rowShape = PropTypes.shape({
   }),
 }).isRequired;
 
-const StatusCell = ({ row }) => <StatusBadge status={row.original.status} />;
+const StatusCell = ({ row }) => (
+  <StatusBadge status={row.original.status} inviteExpired={row.original.invite_expired} />
+);
 StatusCell.propTypes = { row: rowShape };
 
 // Accounts created by services (cms, login_service_user) carry no profile name.
@@ -105,19 +107,21 @@ const ActionsCell = ({ row, column }) => {
   const user = row.original;
   if (user.status === 'disabled') {
     return (
-      <Button size="sm" variant="outline-primary" onClick={() => column.onAction(user, 'reactivate')}>
-        Reactivate
-      </Button>
+      <ActionRow className="justify-content-center flex-nowrap">
+        <Button size="sm" variant="outline-primary" onClick={() => column.onAction(user, 'reactivate')}>
+          Reactivate
+        </Button>
+      </ActionRow>
     );
   }
   return (
-    <ActionRow className="justify-content-start">
+    <ActionRow className="justify-content-center flex-nowrap">
       {user.invite_expired && (
-        <Button size="sm" variant="outline-primary" onClick={() => column.onAction(user, 'resend')}>
-          Resend password reset email
+        <Button size="sm" variant="outline-primary" className="text-nowrap" onClick={() => column.onAction(user, 'resend')}>
+          Resend Invitation
         </Button>
       )}
-      <Button size="sm" variant="outline-danger" onClick={() => column.onAction(user, 'deactivate')}>
+      <Button size="sm" variant="outline-danger" className="text-nowrap" onClick={() => column.onAction(user, 'deactivate')}>
         Deactivate
       </Button>
     </ActionRow>
@@ -175,7 +179,7 @@ const UsersPage = ({ createOpen = false }) => {
     try {
       if (pending.action === 'resend') {
         await resendInvite(pending.user.username);
-        setToast(`Password reset email sent to ${pending.user.email}.`);
+        setToast(`Invitation resent to ${pending.user.email}.`);
       } else {
         const activate = pending.action === 'reactivate';
         await setUserActive(pending.user.username, activate);
@@ -202,7 +206,7 @@ const UsersPage = ({ createOpen = false }) => {
     { Header: 'LMS role', accessor: 'lms_role', Cell: RoleCell },
     { Header: 'Enrollments', accessor: 'enrollment_count', Cell: EnrollmentsCell },
     {
-      Header: 'Actions', id: 'actions', onAction: askConfirm, Cell: ActionsCell,
+      Header: <div className="text-center">Actions</div>, id: 'actions', onAction: askConfirm, Cell: ActionsCell,
     },
   ], [askConfirm]);
 

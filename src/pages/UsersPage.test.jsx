@@ -107,24 +107,32 @@ describe('UsersPage', () => {
       getUsers.mockResolvedValue(PENDING);
       renderPage();
       await screen.findByText('carol');
-      expect(screen.getAllByRole('button', { name: 'Resend password reset email' })).toHaveLength(1);
+      expect(screen.getAllByRole('button', { name: 'Resend Invitation' })).toHaveLength(1);
+    });
+
+    it('labels an expired pending user as Invitation expired', async () => {
+      getUsers.mockResolvedValue(PENDING);
+      renderPage();
+      await screen.findByText('carol');
+      expect(screen.getAllByText('Invitation expired')).toHaveLength(1);
+      expect(screen.getAllByText('Pending invitation').length).toBeGreaterThan(0);
     });
 
     it('does not show the resend button for active or disabled users', async () => {
       renderPage();
       await screen.findByText('alice');
-      expect(screen.queryByRole('button', { name: 'Resend password reset email' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Resend Invitation' })).not.toBeInTheDocument();
     });
 
     it('resends after confirmation and shows the toast', async () => {
       getUsers.mockResolvedValue(PENDING);
       renderPage();
       await screen.findByText('carol');
-      fireEvent.click(screen.getByRole('button', { name: 'Resend password reset email' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Resend Invitation' }));
       expect(await screen.findByText('Resend carol?')).toBeInTheDocument();
       fireEvent.click(screen.getByRole('button', { name: 'Resend' }));
       await waitFor(() => expect(resendInvite).toHaveBeenCalledWith('carol'));
-      expect(await screen.findByText('Password reset email sent to carol@e.com.')).toBeInTheDocument();
+      expect(await screen.findByText('Invitation resent to carol@e.com.')).toBeInTheDocument();
       await waitFor(() => expect(getUsers).toHaveBeenCalledTimes(2));
     });
 
