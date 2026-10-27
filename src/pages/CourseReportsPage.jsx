@@ -339,14 +339,14 @@ const CourseReportsPage = () => {
 
       {/* F9: this was a full-width card holding one button. The action now sits
           on the section heading row instead of in a mostly empty box. */}
-      <div className="d-flex justify-content-between align-items-center mb-4">
+      <div className="d-flex flex-wrap justify-content-between align-items-center mb-4" style={{ gap: '1rem' }}>
         <div>
           <h2 className="mb-1" style={SECTION_LABEL_STYLE}>Generate a report</h2>
           <p className="text-muted small mb-0">
             Exports run in the background and appear under Downloads when ready.
           </p>
         </div>
-        <div className="d-flex align-items-center" style={{ gap: '.75rem' }}>
+        <div className="d-flex flex-wrap align-items-center" style={{ gap: '.75rem' }}>
           <div style={SEARCH_STYLE}>
             <Form.Control
               type="text"

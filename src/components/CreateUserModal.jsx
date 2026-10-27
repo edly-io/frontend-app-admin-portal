@@ -81,7 +81,7 @@ const CreateUserModal = ({ isOpen, onClose, onCreated = () => {} }) => {
   };
 
   return (
-    <ModalDialog title="Create user" isOpen={isOpen} onClose={close} hasCloseButton>
+    <ModalDialog title="Create user" isOpen={isOpen} onClose={close} hasCloseButton isFullscreenOnMobile>
       <ModalDialog.Header>
         <ModalDialog.Title>{result ? `${result.username} created` : 'Create user'}</ModalDialog.Title>
       </ModalDialog.Header>
@@ -109,7 +109,7 @@ const CreateUserModal = ({ isOpen, onClose, onCreated = () => {} }) => {
           </ModalDialog.Footer>
         </>
       ) : (
-        <Form onSubmit={onSubmit}>
+        <Form onSubmit={onSubmit} className="d-flex flex-column flex-grow-1" style={{ minHeight: 0 }}>
           <ModalDialog.Body>
             <p className="text-muted">
               Creates one learner/staff account. Duplicate email or username is rejected inline.

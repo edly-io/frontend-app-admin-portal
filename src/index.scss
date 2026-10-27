@@ -32,3 +32,47 @@
     box-shadow: 0 .125rem .5rem rgba(0, 0, 0, .2);
   }
 }
+
+// Small screens. Paragon's compiled CSS has no mobile rules for these, so they
+// live here. Nothing below is directional (see the note on .skip-to-content).
+
+// Keep the last column off the scroll edge when a wide table is scrolled.
+.pgn__data-table-container {
+  padding-inline-end: 1rem;
+}
+
+// Paragon caps cells at 20vw with an ellipsis, which is ~75px on a phone.
+// Let text wrap instead of cutting names and emails.
+@media (max-width: 767.98px) {
+  .pgn__data-table-cell-wrap {
+    max-width: none;
+    overflow-wrap: anywhere;
+  }
+
+  .pgn__data-table th,
+  .pgn__data-table td {
+    min-width: 6rem;
+  }
+}
+
+// Badges default to baseline alignment, which sits them above the middle of
+// the cell's 24px line.
+.pgn__data-table td .badge {
+  display: inline-flex;
+  align-items: center;
+  vertical-align: middle;
+}
+
+// Row actions (Resend Invitation, Deactivate): always one under the other, so
+// the Actions column stays narrow and is never clipped by the table scroll.
+.user-row-actions {
+  flex-direction: column;
+  align-items: stretch;
+
+  > * {
+    margin: 0 0 .5rem;
+    white-space: nowrap;
+
+    &:last-child { margin-bottom: 0; }
+  }
+}
