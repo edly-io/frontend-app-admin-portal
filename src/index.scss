@@ -63,8 +63,8 @@
   vertical-align: middle;
 }
 
-// Row actions (Resend Invitation, Deactivate): side by side from md up, one
-// under the other on phones so neither button is clipped by the table scroll.
+// Row actions (Resend Invitation, Deactivate): always one under the other, so
+// the Actions column stays narrow and is never clipped by the table scroll.
 .user-row-actions {
   flex-direction: column;
   align-items: stretch;
@@ -74,18 +74,5 @@
     white-space: nowrap;
 
     &:last-child { margin-bottom: 0; }
-  }
-}
-
-@media (min-width: 768px) {
-  .user-row-actions {
-    flex-direction: row;
-    align-items: center;
-
-    > * {
-      margin: 0;
-
-      + * { margin-inline-start: .5rem; }
-    }
   }
 }
