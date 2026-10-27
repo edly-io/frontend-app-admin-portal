@@ -25,7 +25,7 @@ const Header = () => {
     <Navbar expand="lg" collapseOnSelect className="border-bottom mb-2" bg="white">
       <Container size="xl">
         <Navbar.Brand as={NavLink} to="/">
-          <img className="logo-image" src={config.LOGO_URL} alt={config.SITE_NAME || 'Open edX'} height="48" />
+          <img className="logo-image" src={config.LOGO_URL} alt={config.SITE_NAME || 'Open edX'} style={{ width: '200px', height: 'auto' }} />
         </Navbar.Brand>
         <div className="d-flex align-items-center ml-auto order-lg-3">
           {authenticatedUser && (
