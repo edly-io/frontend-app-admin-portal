@@ -15,10 +15,8 @@ import usePageTitle from '../hooks/usePageTitle';
 import EmptyState from '../components/EmptyState';
 import CreateUserModal from '../components/CreateUserModal';
 import { formatDate } from '../utils/formatDate';
-import { downloadCsv, toCsv } from '../utils/downloadCsv';
 
 const PAGE_SIZE = 25;
-const EXPORT_PAGE_SIZE = 100; // the API's max_page_size
 
 /**
  * Platform service accounts. These are not people, and deactivating one breaks
@@ -158,7 +156,6 @@ const UsersPage = ({ createOpen = false }) => {
   const [toast, setToast] = useState('');
   // Bumped to force a reload when nothing else in the query changed.
   const [refreshKey, setRefreshKey] = useState(0);
-  const [downloading, setDownloading] = useState(false);
   const latestRequestRef = useRef(0);
   const keepPageRef = useRef(false);
 
@@ -205,41 +202,6 @@ const UsersPage = ({ createOpen = false }) => {
       setError(e);
     }
     setRefreshKey((k) => k + 1);
-  };
-
-  // Pages through every user matching the current filters and downloads them as
-  // a CSV built in the browser, so no file is stored on the server.
-  const onDownload = async () => {
-    setDownloading(true);
-    try {
-      const users = [];
-      let pageNumber = 1;
-      let total = 0;
-      do {
-        const params = { page: pageNumber, page_size: EXPORT_PAGE_SIZE };
-        if (search) { params.search = search; }
-        if (status) { params.status = status; }
-        // Pages must load in order, so each request waits for the previous one.
-        // eslint-disable-next-line no-await-in-loop
-        const result = await getUsers(params);
-        total = result.count;
-        users.push(...(result.results || []));
-        pageNumber += 1;
-      } while (users.length < total && pageNumber <= Math.ceil(total / EXPORT_PAGE_SIZE));
-      const rows = users.filter((u) => !isServiceAccount(u)).map((u) => [
-        u.username, u.name, u.email, u.status,
-        u.date_joined ? formatDate(u.date_joined) : '',
-        ROLE_LABELS[u.lms_role] || u.lms_role, u.enrollment_count,
-      ]);
-      downloadCsv('users.csv', toCsv(
-        ['Username', 'Name', 'Email', 'Status', 'Created', 'LMS role', 'Enrollments'],
-        rows,
-      ));
-    } catch (e) {
-      setError(e);
-    } finally {
-      setDownloading(false);
-    }
   };
 
   const askConfirm = useCallback((user, action) => {
@@ -336,14 +298,6 @@ const UsersPage = ({ createOpen = false }) => {
           >
             {STATUS_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
           </Form.Control>
-          <Button variant="outline-primary" onClick={onDownload} disabled={downloading}>
-            {downloading ? (
-              <>
-                <Spinner animation="border" size="sm" className="mr-2" screenReaderText="Downloading" />
-                Downloading…
-              </>
-            ) : 'Download CSV'}
-          </Button>
           <Button variant="primary" onClick={openCreate}>Create user</Button>
         </div>
       </div>

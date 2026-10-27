@@ -184,16 +184,4 @@ describe('UsersPage', () => {
     fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Create user' }));
     await waitFor(() => expect(getUsers).toHaveBeenCalledWith(expect.objectContaining({ page: 2 })));
   });
-
-  it('downloads every matching user as a CSV without saving a file', async () => {
-    const createObjectURL = jest.fn(() => 'blob:users');
-    global.URL.createObjectURL = createObjectURL;
-    global.URL.revokeObjectURL = jest.fn();
-    renderPage();
-    await screen.findByText('alice');
-    fireEvent.click(screen.getByRole('button', { name: 'Download CSV' }));
-    await waitFor(() => expect(createObjectURL).toHaveBeenCalled());
-    expect(getUsers).toHaveBeenCalledWith(expect.objectContaining({ page: 1, page_size: 100 }));
-    expect(await screen.findByRole('button', { name: 'Download CSV' })).toBeEnabled();
-  });
 });
