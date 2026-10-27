@@ -4,12 +4,15 @@ import {
 } from '../test-utils';
 
 import UsersPage from './UsersPage';
-import { getUsers, resendInvite, setUserActive } from '../data/api';
+import {
+  createUser, getUsers, resendInvite, setUserActive,
+} from '../data/api';
 
 jest.mock('../data/api', () => ({
   getUsers: jest.fn(),
   setUserActive: jest.fn(),
   resendInvite: jest.fn(),
+  createUser: jest.fn(),
 }));
 
 const USERS = {
@@ -161,5 +164,36 @@ describe('UsersPage', () => {
       expect(within(table).queryByText(/Expires/)).not.toBeInTheDocument();
       expect(within(table).getByText('03/05/2026')).toBeInTheDocument();
     });
+  });
+
+  it('clears filters and jumps to the last page after a user is created', async () => {
+    createUser.mockResolvedValue({
+      username: 'carol', email: 'carol@e.com', status: 'pending', password: null,
+    });
+    getUsers.mockImplementation(async (params) => (
+      params.page_size === 25 && !params.search && params.page === 1
+        ? { ...USERS, count: 30 }
+        : USERS
+    ));
+    renderPage();
+    await screen.findByText('alice');
+    fireEvent.click(screen.getByRole('button', { name: 'Create user' }));
+    fireEvent.change(await screen.findByLabelText('Username'), { target: { value: 'carol' } });
+    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'carol@e.com' } });
+    fireEvent.change(screen.getByLabelText('Full name'), { target: { value: 'Carol C' } });
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Create user' }));
+    await waitFor(() => expect(getUsers).toHaveBeenCalledWith(expect.objectContaining({ page: 2 })));
+  });
+
+  it('downloads every matching user as a CSV without saving a file', async () => {
+    const createObjectURL = jest.fn(() => 'blob:users');
+    global.URL.createObjectURL = createObjectURL;
+    global.URL.revokeObjectURL = jest.fn();
+    renderPage();
+    await screen.findByText('alice');
+    fireEvent.click(screen.getByRole('button', { name: 'Download CSV' }));
+    await waitFor(() => expect(createObjectURL).toHaveBeenCalled());
+    expect(getUsers).toHaveBeenCalledWith(expect.objectContaining({ page: 1, page_size: 100 }));
+    expect(await screen.findByRole('button', { name: 'Download CSV' })).toBeEnabled();
   });
 });

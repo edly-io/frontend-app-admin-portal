@@ -22,27 +22,30 @@ const Header = () => {
   const { authenticatedUser } = useContext(AppContext);
   const config = getConfig();
   return (
-    <Navbar expand="lg" className="border-bottom mb-2" bg="white">
+    <Navbar expand="lg" collapseOnSelect className="border-bottom mb-2" bg="white">
       <Container size="xl">
         <Navbar.Brand as={NavLink} to="/">
           <img className="logo-image" src={config.LOGO_URL} alt={config.SITE_NAME || 'Open edX'} height="48" />
         </Navbar.Brand>
-        <Nav className="mr-auto">
-          <Nav.Link as={NavLink} to="/" end>Users</Nav.Link>
-          <Nav.Link as={NavLink} to="/enroll">Enrollment</Nav.Link>
-          <Nav.Link as={NavLink} to="/staff">Staff &amp; Roles</Nav.Link>
-          <Nav.Link as={NavLink} to="/reporting">Reports</Nav.Link>
-        </Nav>
-        {authenticatedUser && (
-          <Dropdown>
-            <Dropdown.Toggle variant="outline-primary" id="edl-user-menu">
-              {authenticatedUser.username}
-            </Dropdown.Toggle>
-            <Dropdown.Menu alignRight>
-              <Dropdown.Item href={config.LOGOUT_URL}>Sign out</Dropdown.Item>
-            </Dropdown.Menu>
-          </Dropdown>
-        )}
+        <Navbar.Toggle aria-controls="edl-navbar-collapse" />
+        <Navbar.Collapse id="edl-navbar-collapse">
+          <Nav className="mr-auto">
+            <Nav.Link as={NavLink} to="/" end>Users</Nav.Link>
+            <Nav.Link as={NavLink} to="/enroll">Enrollment</Nav.Link>
+            <Nav.Link as={NavLink} to="/staff">Staff &amp; Roles</Nav.Link>
+            <Nav.Link as={NavLink} to="/reporting">Reports</Nav.Link>
+          </Nav>
+          {authenticatedUser && (
+            <Dropdown>
+              <Dropdown.Toggle variant="outline-primary" id="edl-user-menu">
+                {authenticatedUser.username}
+              </Dropdown.Toggle>
+              <Dropdown.Menu alignRight>
+                <Dropdown.Item href={config.LOGOUT_URL}>Sign out</Dropdown.Item>
+              </Dropdown.Menu>
+            </Dropdown>
+          )}
+        </Navbar.Collapse>
       </Container>
     </Navbar>
   );

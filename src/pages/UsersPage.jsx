@@ -1,5 +1,5 @@
 import React, {
-  useCallback, useEffect, useMemo, useState,
+  useCallback, useEffect, useMemo, useRef, useState,
 } from 'react';
 import PropTypes from 'prop-types';
 import { useNavigate } from 'react-router-dom';
@@ -15,8 +15,10 @@ import usePageTitle from '../hooks/usePageTitle';
 import EmptyState from '../components/EmptyState';
 import CreateUserModal from '../components/CreateUserModal';
 import { formatDate } from '../utils/formatDate';
+import { downloadCsv, toCsv } from '../utils/downloadCsv';
 
 const PAGE_SIZE = 25;
+const EXPORT_PAGE_SIZE = 100; // the API's max_page_size
 
 /**
  * Platform service accounts. These are not people, and deactivating one breaks
@@ -154,26 +156,91 @@ const UsersPage = ({ createOpen = false }) => {
   const [isConfirmOpen, openConfirm, closeConfirm] = useToggle(false);
   const [isCreateOpen, openCreate, closeCreate] = useToggle(createOpen);
   const [toast, setToast] = useState('');
+  // Bumped to force a reload when nothing else in the query changed.
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [downloading, setDownloading] = useState(false);
+  const latestRequestRef = useRef(0);
+  const keepPageRef = useRef(false);
 
   const fetchUsers = useCallback(async () => {
+    latestRequestRef.current += 1;
+    const requestId = latestRequestRef.current;
     setLoading(true);
     try {
       const params = { page, page_size: PAGE_SIZE };
       if (search) { params.search = search; }
       if (status) { params.status = status; }
-      setData(await getUsers(params));
+      const result = await getUsers(params);
+      if (requestId !== latestRequestRef.current) { return; }
+      setData(result);
       setError(null);
     } catch (e) {
-      setError(e);
+      if (requestId === latestRequestRef.current) { setError(e); }
     } finally {
-      setLoading(false);
+      if (requestId === latestRequestRef.current) { setLoading(false); }
     }
-  }, [search, status, page]);
+    // refreshKey only re-creates the callback so a reload can be forced.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search, status, page, refreshKey]);
 
   useDebouncedEffect(fetchUsers, [fetchUsers]);
 
   // Reset to page 1 whenever the filters change.
-  useEffect(() => { setPage(1); }, [search, status]);
+  useEffect(() => {
+    if (keepPageRef.current) { keepPageRef.current = false; return; }
+    setPage(1);
+  }, [search, status]);
+
+  // The directory lists oldest first, so a new user sits on the last page. Clear
+  // the filters and jump there, otherwise the reload shows no visible change.
+  const showNewUser = async (user) => {
+    setToast(`${user.username} created.`);
+    try {
+      const { count } = await getUsers({ page: 1, page_size: PAGE_SIZE });
+      if (search || status) { keepPageRef.current = true; }
+      setSearch('');
+      setStatus('');
+      setPage(Math.max(1, Math.ceil(count / PAGE_SIZE)));
+    } catch (e) {
+      setError(e);
+    }
+    setRefreshKey((k) => k + 1);
+  };
+
+  // Pages through every user matching the current filters and downloads them as
+  // a CSV built in the browser, so no file is stored on the server.
+  const onDownload = async () => {
+    setDownloading(true);
+    try {
+      const users = [];
+      let pageNumber = 1;
+      let total = 0;
+      do {
+        const params = { page: pageNumber, page_size: EXPORT_PAGE_SIZE };
+        if (search) { params.search = search; }
+        if (status) { params.status = status; }
+        // Pages must load in order, so each request waits for the previous one.
+        // eslint-disable-next-line no-await-in-loop
+        const result = await getUsers(params);
+        total = result.count;
+        users.push(...(result.results || []));
+        pageNumber += 1;
+      } while (users.length < total && pageNumber <= Math.ceil(total / EXPORT_PAGE_SIZE));
+      const rows = users.filter((u) => !isServiceAccount(u)).map((u) => [
+        u.username, u.name, u.email, u.status,
+        u.date_joined ? formatDate(u.date_joined) : '',
+        ROLE_LABELS[u.lms_role] || u.lms_role, u.enrollment_count,
+      ]);
+      downloadCsv('users.csv', toCsv(
+        ['Username', 'Name', 'Email', 'Status', 'Created', 'LMS role', 'Enrollments'],
+        rows,
+      ));
+    } catch (e) {
+      setError(e);
+    } finally {
+      setDownloading(false);
+    }
+  };
 
   const askConfirm = useCallback((user, action) => {
     setPending({ user, action });
@@ -249,14 +316,15 @@ const UsersPage = ({ createOpen = false }) => {
         style={{ gap: '1rem' }}
       >
         <h1 className="mb-0">Users</h1>
-        <div className="d-flex flex-wrap align-items-center" style={{ gap: '.75rem' }}>
+        <div className="d-flex flex-wrap align-items-center flex-grow-1 flex-md-grow-0" style={{ gap: '.75rem' }}>
           <Form.Control
             type="text"
             aria-label="Search users"
             placeholder="Search name, username or email"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            style={{ minWidth: '18rem' }}
+            className="flex-grow-1"
+            style={{ minWidth: '12rem' }}
           />
           <Form.Control
             as="select"
@@ -268,11 +336,19 @@ const UsersPage = ({ createOpen = false }) => {
           >
             {STATUS_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
           </Form.Control>
+          <Button variant="outline-primary" onClick={onDownload} disabled={downloading}>
+            {downloading ? (
+              <>
+                <Spinner animation="border" size="sm" className="mr-2" screenReaderText="Downloading" />
+                Downloading…
+              </>
+            ) : 'Download CSV'}
+          </Button>
           <Button variant="primary" onClick={openCreate}>Create user</Button>
         </div>
       </div>
 
-      {loading ? (
+      {loading && !data.results.length ? (
         <div className="d-flex justify-content-center align-items-center" style={TABLE_LOADING_MIN_HEIGHT}>
           <Spinner animation="border" screenReaderText="Loading users" />
         </div>
@@ -302,7 +378,7 @@ const UsersPage = ({ createOpen = false }) => {
           // leave the admin on the directory, not on a URL with no dialog.
           if (createOpen) { navigate('/', { replace: true }); }
         }}
-        onCreated={(user) => { setToast(`${user.username} created.`); fetchUsers(); }}
+        onCreated={showNewUser}
       />
 
       <ModalDialog title="Confirm" isOpen={isConfirmOpen} onClose={closeConfirm} hasCloseButton={false}>
