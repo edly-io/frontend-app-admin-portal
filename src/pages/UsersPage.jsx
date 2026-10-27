@@ -157,7 +157,6 @@ const UsersPage = ({ createOpen = false }) => {
   // Bumped to force a reload when nothing else in the query changed.
   const [refreshKey, setRefreshKey] = useState(0);
   const latestRequestRef = useRef(0);
-  const keepPageRef = useRef(false);
 
   const fetchUsers = useCallback(async () => {
     latestRequestRef.current += 1;
@@ -184,23 +183,16 @@ const UsersPage = ({ createOpen = false }) => {
 
   // Reset to page 1 whenever the filters change.
   useEffect(() => {
-    if (keepPageRef.current) { keepPageRef.current = false; return; }
     setPage(1);
   }, [search, status]);
 
-  // The directory lists oldest first, so a new user sits on the last page. Clear
-  // the filters and jump there, otherwise the reload shows no visible change.
-  const showNewUser = async (user) => {
+  // The directory lists newest first. Clear the filters and go to page 1 so the
+  // new user is visible, then force a reload in case nothing else changed.
+  const showNewUser = (user) => {
     setToast(`${user.username} created.`);
-    try {
-      const { count } = await getUsers({ page: 1, page_size: PAGE_SIZE });
-      if (search || status) { keepPageRef.current = true; }
-      setSearch('');
-      setStatus('');
-      setPage(Math.max(1, Math.ceil(count / PAGE_SIZE)));
-    } catch (e) {
-      setError(e);
-    }
+    setSearch('');
+    setStatus('');
+    setPage(1);
     setRefreshKey((k) => k + 1);
   };
 

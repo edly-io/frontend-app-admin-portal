@@ -27,16 +27,9 @@ const Header = () => {
         <Navbar.Brand as={NavLink} to="/">
           <img className="logo-image" src={config.LOGO_URL} alt={config.SITE_NAME || 'Open edX'} height="48" />
         </Navbar.Brand>
-        <Navbar.Toggle aria-controls="edl-navbar-collapse" />
-        <Navbar.Collapse id="edl-navbar-collapse">
-          <Nav className="mr-auto">
-            <Nav.Link as={NavLink} to="/" end>Users</Nav.Link>
-            <Nav.Link as={NavLink} to="/enroll">Enrollment</Nav.Link>
-            <Nav.Link as={NavLink} to="/staff">Staff &amp; Roles</Nav.Link>
-            <Nav.Link as={NavLink} to="/reporting">Reports</Nav.Link>
-          </Nav>
+        <div className="d-flex align-items-center ml-auto order-lg-3">
           {authenticatedUser && (
-            <Dropdown>
+            <Dropdown className="mr-2">
               <Dropdown.Toggle variant="outline-primary" id="edl-user-menu">
                 {authenticatedUser.username}
               </Dropdown.Toggle>
@@ -45,6 +38,15 @@ const Header = () => {
               </Dropdown.Menu>
             </Dropdown>
           )}
+          <Navbar.Toggle aria-controls="edl-navbar-collapse" />
+        </div>
+        <Navbar.Collapse id="edl-navbar-collapse" className="order-lg-2">
+          <Nav className="mr-auto">
+            <Nav.Link as={NavLink} to="/" end>Users</Nav.Link>
+            <Nav.Link as={NavLink} to="/enroll">Enrollment</Nav.Link>
+            <Nav.Link as={NavLink} to="/staff">Staff &amp; Roles</Nav.Link>
+            <Nav.Link as={NavLink} to="/reporting">Reports</Nav.Link>
+          </Nav>
         </Navbar.Collapse>
       </Container>
     </Navbar>

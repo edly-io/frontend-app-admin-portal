@@ -166,22 +166,18 @@ describe('UsersPage', () => {
     });
   });
 
-  it('clears filters and jumps to the last page after a user is created', async () => {
+  it('clears filters, returns to page 1 and reloads after a user is created', async () => {
     createUser.mockResolvedValue({
       username: 'carol', email: 'carol@e.com', status: 'pending', password: null,
     });
-    getUsers.mockImplementation(async (params) => (
-      params.page_size === 25 && !params.search && params.page === 1
-        ? { ...USERS, count: 30 }
-        : USERS
-    ));
     renderPage();
     await screen.findByText('alice');
+    getUsers.mockClear();
     fireEvent.click(screen.getByRole('button', { name: 'Create user' }));
     fireEvent.change(await screen.findByLabelText('Username'), { target: { value: 'carol' } });
     fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'carol@e.com' } });
     fireEvent.change(screen.getByLabelText('Full name'), { target: { value: 'Carol C' } });
     fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Create user' }));
-    await waitFor(() => expect(getUsers).toHaveBeenCalledWith(expect.objectContaining({ page: 2 })));
+    await waitFor(() => expect(getUsers).toHaveBeenCalledWith({ page: 1, page_size: 25 }));
   });
 });
