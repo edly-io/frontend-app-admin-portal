@@ -113,7 +113,7 @@ const ActionsCell = ({ row, column }) => {
   const user = row.original;
   if (user.status === 'disabled') {
     return (
-      <ActionRow className="justify-content-center flex-nowrap">
+      <ActionRow className="justify-content-center user-row-actions">
         <Button size="sm" variant="outline-primary" onClick={() => column.onAction(user, 'reactivate')}>
           Reactivate
         </Button>
@@ -121,7 +121,7 @@ const ActionsCell = ({ row, column }) => {
     );
   }
   return (
-    <ActionRow className="justify-content-center flex-nowrap">
+    <ActionRow className="justify-content-center user-row-actions">
       {user.invite_expired && (
         <Button size="sm" variant="outline-primary" className="text-nowrap" onClick={() => column.onAction(user, 'resend')}>
           Resend Invitation

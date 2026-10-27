@@ -62,3 +62,30 @@
   align-items: center;
   vertical-align: middle;
 }
+
+// Row actions (Resend Invitation, Deactivate): side by side from md up, one
+// under the other on phones so neither button is clipped by the table scroll.
+.user-row-actions {
+  flex-direction: column;
+  align-items: stretch;
+
+  > * {
+    margin: 0 0 .5rem;
+    white-space: nowrap;
+
+    &:last-child { margin-bottom: 0; }
+  }
+}
+
+@media (min-width: 768px) {
+  .user-row-actions {
+    flex-direction: row;
+    align-items: center;
+
+    > * {
+      margin: 0;
+
+      + * { margin-inline-start: .5rem; }
+    }
+  }
+}
