@@ -5,7 +5,7 @@ import {
 
 import UsersPage from './UsersPage';
 import {
-  createUser, getUsers, resendInvite, setUserActive,
+  createUser, getUsers, resendInvite, setUserActive, getOrgAccess, getOrganizations,
 } from '../data/api';
 
 jest.mock('../data/api', () => ({
@@ -13,6 +13,9 @@ jest.mock('../data/api', () => ({
   setUserActive: jest.fn(),
   resendInvite: jest.fn(),
   createUser: jest.fn(),
+  getOrgAccess: jest.fn(),
+  getOrganizations: jest.fn(),
+  setOrgAccess: jest.fn(),
 }));
 
 const USERS = {
@@ -34,6 +37,10 @@ beforeEach(() => {
   getUsers.mockResolvedValue(USERS);
   setUserActive.mockResolvedValue({});
   resendInvite.mockResolvedValue({});
+  getOrgAccess.mockResolvedValue({
+    editable: true, org_admin: false, organizations: [], visibility: false,
+  });
+  getOrganizations.mockResolvedValue({ results: [] });
 });
 
 describe('UsersPage', () => {
@@ -180,4 +187,49 @@ describe('UsersPage', () => {
     fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Create user' }));
     await waitFor(() => expect(getUsers).toHaveBeenCalledWith({ page: 1, page_size: 25 }));
   });
+});
+
+it('opens access only from Edit access, not from a row or Deactivate', async () => {
+  renderPage();
+  fireEvent.click(await screen.findByText('alice'));
+  expect(screen.queryByText('Access for Alice A')).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Deactivate' }));
+  expect(await screen.findByText('Deactivate alice?')).toBeInTheDocument();
+  expect(screen.queryByText('Access for Alice A')).not.toBeInTheDocument();
+});
+
+it('shows organization columns and filters the portal service user', async () => {
+  getUsers.mockResolvedValue({
+    count: 2,
+    results: [
+      {
+        ...USERS.results[0], org_admin_all_orgs: true, org_admin_orgs: ['OrgA'], org_visibility_orgs: ['OrgB'],
+      },
+      { ...USERS.results[1], username: 'edl_portal_service' },
+    ],
+  });
+  renderPage();
+  expect(await screen.findByText('All organizations')).toBeInTheDocument();
+  expect(screen.getByText('OrgA')).toBeInTheDocument();
+  expect(screen.getByText('Has org visibility?')).toBeInTheDocument();
+  expect(screen.getByText('Org admin for')).toBeInTheDocument();
+  expect(screen.getByText('Yes')).toBeInTheDocument();
+  expect(screen.getByText('Actions')).toBeInTheDocument();
+  expect(screen.queryByText('edl_portal_service')).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Edit access' }));
+  expect(await screen.findByText('Access for Alice A')).toBeInTheDocument();
+});
+
+it.each([
+  [{ status: 'disabled' }, 'This account is deactivated. Reactivate it before changing org access.'],
+  [{ status: 'pending' }, 'Activate this account before giving org access.'],
+  [{ lms_role: 'staff' }, 'Global staff already have access to every course.'],
+])('disables Edit access with a reason for %j', async (flags, reason) => {
+  getUsers.mockResolvedValue({ count: 1, results: [{ ...USERS.results[0], ...flags }] });
+  renderPage();
+  const button = await screen.findByRole('button', { name: 'Edit access' });
+  expect(button).toBeDisabled();
+  expect(screen.getByLabelText(`Edit access unavailable: ${reason}`)).toBeInTheDocument();
+  fireEvent.click(button);
+  expect(getOrgAccess).not.toHaveBeenCalled();
 });

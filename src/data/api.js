@@ -108,3 +108,18 @@ export async function getCourseCertificates(courseId) {
   const { data } = await client().get(`${courseReportsBase(courseId)}/certificates/`);
   return data;
 }
+
+export async function getOrganizations() {
+  const { data } = await client().get(`${apiBaseUrl()}/organizations/`);
+  return data;
+}
+
+export async function getOrgAccess(username) {
+  const { data } = await client().get(`${apiBaseUrl()}/users/${encodeURIComponent(username)}/org-access/`);
+  return data;
+}
+
+export async function setOrgAccess(username, payload) {
+  const { data } = await client().put(`${apiBaseUrl()}/users/${encodeURIComponent(username)}/org-access/`, payload);
+  return data;
+}

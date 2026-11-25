@@ -76,3 +76,75 @@
     &:last-child { margin-bottom: 0; }
   }
 }
+
+// Org multi select (OrgAccessModal): the list drops below the search box and
+// scrolls, so any number of organizations takes the same room.
+.org-multiselect-list {
+  position: absolute;
+  z-index: 1060;
+  width: 100%;
+  max-height: 12rem;
+  overflow-y: auto;
+  margin-top: .25rem;
+}
+
+.org-multiselect-option {
+  display: block;
+  width: 100%;
+  padding: .5rem 1rem;
+  text-align: start;
+  background: transparent;
+  border: 0;
+
+  &:hover,
+  &:focus {
+    background: #f2f0ef;
+  }
+}
+
+// Users table actions: one row, never wrapped. A narrow screen scrolls the
+// table sideways instead of breaking button labels over two lines.
+.users-table-rows {
+  overflow-x: auto;
+
+  th:last-child,
+  td:last-child {
+    text-align: center;
+    white-space: nowrap;
+    // Paragon caps every cell at 20vw with an ellipsis, which is about 84px on
+    // a phone and cut the buttons in half. The actions cell must be as wide as
+    // its buttons, so the label centres over them and nothing is clipped.
+    max-width: none;
+    overflow: visible;
+    text-overflow: clip;
+    min-width: max-content;
+  }
+
+  // The header label sits in a flex span, which text-align does not reach.
+  th:last-child .d-flex {
+    justify-content: center;
+  }
+
+  .pgn__action-row {
+    flex-wrap: nowrap;
+    justify-content: center;
+    margin: 0;
+    gap: .5rem;
+  }
+
+  // The theme gives .btn a bottom margin and Paragon's row adds none between
+  // buttons: without these the first button sat higher and the buttons touched.
+  .pgn__action-row .btn {
+    margin: 0;
+    white-space: nowrap;
+  }
+}
+
+// Paragon only makes this wrapper scroll below its own breakpoint. On a wide
+// window the table can still be wider than the page container, and then the
+// whole page scrolled sideways. Make the table's own box always scroll, so the
+// nav, title and filters stay in place.
+.pgn__data-table-layout-wrapper {
+  overflow-x: auto;
+  max-width: 100%;
+}

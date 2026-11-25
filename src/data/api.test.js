@@ -1,12 +1,20 @@
-import { apiBaseUrl, resendInvite } from './api';
+import {
+  apiBaseUrl, resendInvite, getOrganizations, getOrgAccess, setOrgAccess,
+} from './api';
 
 const mockPost = jest.fn();
+const mockGet = jest.fn();
+const mockPut = jest.fn();
 
 jest.mock('@edx/frontend-platform', () => ({
   getConfig: () => ({ LMS_BASE_URL: 'http://lms.test' }),
 }));
 jest.mock('@edx/frontend-platform/auth', () => ({
-  getAuthenticatedHttpClient: () => ({ get: jest.fn(), post: (...args) => mockPost(...args) }),
+  getAuthenticatedHttpClient: () => ({
+    get: (...args) => mockGet(...args),
+    put: (...args) => mockPut(...args),
+    post: (...args) => mockPost(...args),
+  }),
 }));
 
 describe('admin-portal api client', () => {
@@ -20,4 +28,15 @@ describe('admin-portal api client', () => {
     expect(mockPost).toHaveBeenCalledWith('http://lms.test/admin-portal/api/v1/users/a%20b/resend-invite/');
     expect(data.username).toBe('a b');
   });
+});
+
+it('calls organization access endpoints with encoded usernames', async () => {
+  mockGet.mockResolvedValue({ data: {} });
+  mockPut.mockResolvedValue({ data: {} });
+  await getOrganizations();
+  await getOrgAccess('a b');
+  await setOrgAccess('a b', { visibility: true });
+  expect(mockGet).toHaveBeenCalledWith('http://lms.test/admin-portal/api/v1/organizations/');
+  expect(mockGet).toHaveBeenCalledWith('http://lms.test/admin-portal/api/v1/users/a%20b/org-access/');
+  expect(mockPut).toHaveBeenCalledWith('http://lms.test/admin-portal/api/v1/users/a%20b/org-access/', { visibility: true });
 });

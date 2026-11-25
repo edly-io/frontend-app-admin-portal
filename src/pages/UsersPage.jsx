@@ -5,8 +5,9 @@ import PropTypes from 'prop-types';
 import { useNavigate } from 'react-router-dom';
 import {
   Container, DataTable, Alert, Spinner, Form, Button, Pagination,
-  ModalDialog, ActionRow, Toast, useToggle,
+  ModalDialog, ActionRow, Toast, useToggle, Badge, OverlayTrigger, Tooltip, Icon,
 } from '@openedx/paragon';
+import { InfoOutline } from '@openedx/paragon/icons';
 
 import { getUsers, resendInvite, setUserActive } from '../data/api';
 import StatusBadge from '../components/StatusBadge';
@@ -15,6 +16,8 @@ import usePageTitle from '../hooks/usePageTitle';
 import EmptyState from '../components/EmptyState';
 import CreateUserModal from '../components/CreateUserModal';
 import { formatDate } from '../utils/formatDate';
+import OrgAccessModal from '../components/OrgAccessModal';
+import { ACTIONS_COLUMN_LABEL } from '../constants/table';
 
 const PAGE_SIZE = 25;
 
@@ -28,6 +31,7 @@ const PAGE_SIZE = 25;
  * `UsersView` would fix that and is the right long-term home for it.
  */
 const SERVICE_ACCOUNTS = new Set([
+  'edl_portal_service',
   'login_service_user',
   'cms',
   'lms',
@@ -61,6 +65,9 @@ const rowShape = PropTypes.shape({
     status: PropTypes.string,
     lms_role: PropTypes.string,
     enrollment_count: PropTypes.number,
+    org_admin_orgs: PropTypes.arrayOf(PropTypes.string),
+    org_admin_all_orgs: PropTypes.bool,
+    org_visibility_orgs: PropTypes.arrayOf(PropTypes.string),
     date_joined: PropTypes.string,
     invite_expires_at: PropTypes.string,
     invite_expired: PropTypes.bool,
@@ -109,11 +116,79 @@ const CreatedCell = ({ row }) => (
 );
 CreatedCell.propTypes = { row: rowShape };
 
+const OrgListCell = ({ row }) => {
+  const orgs = row.original.org_admin_orgs || [];
+  return <>{row.original.org_admin_all_orgs && <Badge variant="info">All organizations</Badge>} {orgs.length ? orgs.join(', ') : !row.original.org_admin_all_orgs && <span className="text-muted">None</span>}</>;
+};
+OrgListCell.propTypes = { row: rowShape };
+
+const OrgVisibilityCell = ({ row }) => (
+  row.original.org_visibility_orgs?.length
+    ? <span>Yes</span>
+    : <span className="text-muted">No</span>
+);
+OrgVisibilityCell.propTypes = { row: rowShape };
+
+// Column title with an info icon. The tooltip opens on hover and on keyboard
+// focus, and its text is also the icon's screen reader label.
+const HeaderWithHint = ({ label, hint, id }) => (
+  <OverlayTrigger placement="top" overlay={<Tooltip id={id}>{hint}</Tooltip>}>
+    {/* eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex */}
+    <span className="d-inline-flex align-items-center" tabIndex={0} style={{ cursor: 'help' }}>
+      {label}
+      <Icon src={InfoOutline} size="xs" className="ml-1" screenReaderText={hint} />
+    </span>
+  </OverlayTrigger>
+);
+HeaderWithHint.propTypes = {
+  label: PropTypes.string.isRequired,
+  hint: PropTypes.string.isRequired,
+  id: PropTypes.string.isRequired,
+};
+
+// Org access can only be edited for active, non-staff accounts. Otherwise the
+// button is disabled and a tooltip says why. A disabled button gets no hover
+// events, so the tooltip hangs on a wrapper.
+const editBlockedReason = (user) => {
+  if (user.lms_role === 'admin' || user.lms_role === 'staff') {
+    return 'Global staff already have access to every course.';
+  }
+  if (user.status === 'disabled') {
+    return 'This account is deactivated. Reactivate it before changing org access.';
+  }
+  if (user.status !== 'active') {
+    return 'Activate this account before giving org access.';
+  }
+  return null;
+};
+
+const EditAccessButton = ({ user, onEdit }) => {
+  const reason = editBlockedReason(user);
+  if (!reason) {
+    return <Button size="sm" variant="outline-primary" onClick={() => onEdit(user)}>Edit access</Button>;
+  }
+  return (
+    <OverlayTrigger placement="top" overlay={<Tooltip id={`edit-blocked-${user.username}`}>{reason}</Tooltip>}>
+      {/* eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex */}
+      <span className="d-inline-block" tabIndex={0} aria-label={`Edit access unavailable: ${reason}`}>
+        <Button size="sm" variant="outline-primary" disabled style={{ pointerEvents: 'none' }}>Edit access</Button>
+      </span>
+    </OverlayTrigger>
+  );
+};
+EditAccessButton.propTypes = {
+  user: PropTypes.shape({
+    username: PropTypes.string, status: PropTypes.string, lms_role: PropTypes.string,
+  }).isRequired,
+  onEdit: PropTypes.func.isRequired,
+};
+
 const ActionsCell = ({ row, column }) => {
   const user = row.original;
   if (user.status === 'disabled') {
     return (
-      <ActionRow className="justify-content-center user-row-actions">
+      <ActionRow className="justify-content-center flex-nowrap">
+        <EditAccessButton user={user} onEdit={column.onEdit} />
         <Button size="sm" variant="outline-primary" onClick={() => column.onAction(user, 'reactivate')}>
           Reactivate
         </Button>
@@ -121,7 +196,8 @@ const ActionsCell = ({ row, column }) => {
     );
   }
   return (
-    <ActionRow className="justify-content-center user-row-actions">
+    <ActionRow className="justify-content-center flex-nowrap">
+      <EditAccessButton user={user} onEdit={column.onEdit} />
       {user.invite_expired && (
         <Button size="sm" variant="outline-primary" className="text-nowrap" onClick={() => column.onAction(user, 'resend')}>
           Resend Invitation
@@ -135,7 +211,7 @@ const ActionsCell = ({ row, column }) => {
 };
 ActionsCell.propTypes = {
   row: rowShape,
-  column: PropTypes.shape({ onAction: PropTypes.func }).isRequired,
+  column: PropTypes.shape({ onAction: PropTypes.func, onEdit: PropTypes.func }).isRequired,
 };
 
 const UsersPage = ({ createOpen = false }) => {
@@ -157,6 +233,7 @@ const UsersPage = ({ createOpen = false }) => {
   // Bumped to force a reload when nothing else in the query changed.
   const [refreshKey, setRefreshKey] = useState(0);
   const latestRequestRef = useRef(0);
+  const [accessUser, setAccessUser] = useState(null);
 
   const fetchUsers = useCallback(async () => {
     latestRequestRef.current += 1;
@@ -232,7 +309,29 @@ const UsersPage = ({ createOpen = false }) => {
     { Header: 'LMS role', accessor: 'lms_role', Cell: RoleCell },
     { Header: 'Enrollments', accessor: 'enrollment_count', Cell: EnrollmentsCell },
     {
-      Header: <div className="text-center">Actions</div>, id: 'actions', onAction: askConfirm, Cell: ActionsCell,
+      Header: (
+        <HeaderWithHint
+          id="hint-org-admin"
+          label="Org admin for"
+          hint="Organizations where this user can create course runs, re-runs and libraries."
+        />
+      ),
+      accessor: 'org_admin_orgs',
+      Cell: OrgListCell,
+    },
+    {
+      Header: (
+        <HeaderWithHint
+          id="hint-org-visibility"
+          label="Has org visibility?"
+          hint="Yes: sees and manages every course in the organizations listed under Org admin for, including new ones. No: sees only courses they are on the team of."
+        />
+      ),
+      accessor: 'org_visibility_orgs',
+      Cell: OrgVisibilityCell,
+    },
+    {
+      Header: ACTIONS_COLUMN_LABEL, id: 'actions', onAction: askConfirm, onEdit: setAccessUser, Cell: ActionsCell,
     },
   ], [askConfirm]);
 
@@ -270,7 +369,7 @@ const UsersPage = ({ createOpen = false }) => {
         style={{ gap: '1rem' }}
       >
         <h1 className="mb-0">Users</h1>
-        <div className="d-flex flex-wrap align-items-center flex-grow-1 flex-md-grow-0" style={{ gap: '.75rem' }}>
+        <div className="d-flex flex-wrap align-items-center flex-grow-1 flex-md-grow-0 justify-content-end ml-auto" style={{ gap: '.75rem' }}>
           <Form.Control
             type="text"
             aria-label="Search users"
@@ -301,7 +400,7 @@ const UsersPage = ({ createOpen = false }) => {
       ) : (
         <>
           <DataTable columns={columns} data={visibleUsers} itemCount={visibleUsers.length}>
-            <DataTable.Table />
+            <div className="users-table-rows"><DataTable.Table /></div>
             <DataTable.EmptyTable content={<EmptyState message="No users found" hint="Try a different name, username or email, or clear the status filter." />} />
           </DataTable>
           {pageCount > 1 && (
@@ -316,6 +415,7 @@ const UsersPage = ({ createOpen = false }) => {
         </>
       )}
 
+      <OrgAccessModal isOpen={!!accessUser} user={accessUser} onClose={() => setAccessUser(null)} onSaved={(user) => { setToast(`Access updated for ${user.username}.`); fetchUsers(); }} />
       <CreateUserModal
         isOpen={isCreateOpen}
         onClose={() => {
