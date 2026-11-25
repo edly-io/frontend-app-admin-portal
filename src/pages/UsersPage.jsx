@@ -135,7 +135,7 @@ const HeaderWithHint = ({ label, hint, id }) => (
   <OverlayTrigger placement="top" overlay={<Tooltip id={id}>{hint}</Tooltip>}>
     {/* eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex */}
     <span className="d-inline-flex align-items-center" tabIndex={0} style={{ cursor: 'help' }}>
-      {label}
+      <span className="users-th-label">{label}</span>
       <Icon src={InfoOutline} size="xs" className="ml-1" screenReaderText={hint} />
     </span>
   </OverlayTrigger>
@@ -312,7 +312,7 @@ const UsersPage = ({ createOpen = false }) => {
       Header: (
         <HeaderWithHint
           id="hint-org-admin"
-          label="Org admin for"
+          label="Admin"
           hint="Organizations where this user can create course runs, re-runs and libraries."
         />
       ),
@@ -323,8 +323,8 @@ const UsersPage = ({ createOpen = false }) => {
       Header: (
         <HeaderWithHint
           id="hint-org-visibility"
-          label="Has org visibility?"
-          hint="Yes: sees and manages every course in the organizations listed under Org admin for, including new ones. No: sees only courses they are on the team of."
+          label="Org Visibility"
+          hint="Yes: Can see and manage all courses in their admin orgs, including new ones. No: Can only see and manage courses they've been added to."
         />
       ),
       accessor: 'org_visibility_orgs',

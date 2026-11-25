@@ -192,10 +192,10 @@ describe('UsersPage', () => {
 it('opens access only from Edit access, not from a row or Deactivate', async () => {
   renderPage();
   fireEvent.click(await screen.findByText('alice'));
-  expect(screen.queryByText('Access for Alice A')).not.toBeInTheDocument();
+  expect(screen.queryByText('Permissions for Alice A')).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'Deactivate' }));
   expect(await screen.findByText('Deactivate alice?')).toBeInTheDocument();
-  expect(screen.queryByText('Access for Alice A')).not.toBeInTheDocument();
+  expect(screen.queryByText('Permissions for Alice A')).not.toBeInTheDocument();
 });
 
 it('shows organization columns and filters the portal service user', async () => {
@@ -211,13 +211,13 @@ it('shows organization columns and filters the portal service user', async () =>
   renderPage();
   expect(await screen.findByText('All organizations')).toBeInTheDocument();
   expect(screen.getByText('OrgA')).toBeInTheDocument();
-  expect(screen.getByText('Has org visibility?')).toBeInTheDocument();
-  expect(screen.getByText('Org admin for')).toBeInTheDocument();
+  expect(screen.getByText('Org Visibility')).toBeInTheDocument();
+  expect(screen.getByText('Admin')).toBeInTheDocument();
   expect(screen.getByText('Yes')).toBeInTheDocument();
   expect(screen.getByText('Actions')).toBeInTheDocument();
   expect(screen.queryByText('edl_portal_service')).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'Edit access' }));
-  expect(await screen.findByText('Access for Alice A')).toBeInTheDocument();
+  expect(await screen.findByText('Permissions for Alice A')).toBeInTheDocument();
 });
 
 it.each([
