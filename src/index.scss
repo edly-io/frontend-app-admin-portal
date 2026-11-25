@@ -91,7 +91,9 @@
 .org-multiselect-option {
   display: block;
   width: 100%;
-  padding: .5rem 1rem;
+  padding: .375rem .75rem;
+  font-size: .8125rem;
+  line-height: 1.4;
   text-align: start;
   background: transparent;
   border: 0;
@@ -118,6 +120,17 @@
     overflow: visible;
     text-overflow: clip;
     min-width: max-content;
+  }
+
+  // Column titles take two lines at most. The minimum width keeps a title
+  // from being squeezed into three, and the clamp is the safety net.
+  th { min-width: 7rem; }
+
+  .users-th-label {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
   }
 
   // The header label sits in a flex span, which text-align does not reach.
@@ -147,4 +160,80 @@
 .pgn__data-table-layout-wrapper {
   overflow-x: auto;
   max-width: 100%;
+}
+
+// Access modal switches: the sentence sits on the left, the toggle at the
+// right edge. Paragon renders the toggle first, so the row is reversed.
+.access-switch-row {
+  > div { width: 100%; }
+
+  .pgn__form-switch {
+    flex-direction: row-reverse;
+    justify-content: space-between;
+    width: 100%;
+  }
+
+  .pgn__form-switch-input {
+    margin-inline-end: 0;
+    margin-inline-start: 1rem;
+    // Softer toggle: teal when on, mid grey when off. The knob stays white.
+    background-color: #8c8c8c;
+    border-color: #8c8c8c;
+    // Paragon draws the off knob navy. Make it white, like the on knob.
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='-4 -4 8 8'%3e%3ccircle r='3' fill='%23fff'/%3e%3c/svg%3e");
+
+    &:checked {
+      // Same green as the Active status badge.
+      background-color: var(--pgn-color-badge-bg-success);
+      border-color: var(--pgn-color-badge-bg-success);
+    }
+  }
+
+  .access-switch-text {
+    font-size: .875rem;
+    font-weight: 600;
+    line-height: 1.4;
+  }
+}
+
+// Tighter modal body so the sentence rows and the buttons sit closer.
+.access-switch-row + .small,
+.access-switch-row ~ .small { margin-top: .25rem; }
+
+// Permissions modal sizes: compact, so the two sentences are the loudest text.
+.access-modal {
+  .pgn__modal-title { font-size: 1rem; font-weight: 700; line-height: 1.4; }
+
+  .pgn__modal-header,
+  .pgn__modal-body,
+  .pgn__modal-footer { padding-inline: 1rem; }
+
+  .pgn__modal-header { padding-top: 1rem; padding-bottom: .5rem; }
+  .pgn__modal-footer { padding-top: .5rem; padding-bottom: 1rem; }
+
+  .access-modal-email { font-size: .75rem; line-height: 1.4; }
+  .access-modal-label { font-size: .75rem; font-weight: 600; }
+
+  .pgn__chip {
+    min-height: 0;
+    padding: .0625rem .5rem;
+    font-size: .75rem;
+    line-height: 1.5;
+  }
+
+  .form-control {
+    height: auto;
+    min-height: 0;
+    padding: .375rem .5rem;
+    font-size: .8125rem;
+  }
+
+  .btn {
+    min-height: 0;
+    padding: .375rem .875rem;
+    font-size: .8125rem;
+    line-height: 1.4;
+  }
+
+  .alert { font-size: .8125rem; }
 }
