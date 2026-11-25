@@ -17,7 +17,9 @@ const base = {
   global_creator: false,
   partial_visibility_orgs: [],
 };
-const user = { username: 'alice', name: 'Alice' };
+const user = { username: 'alice', name: 'Alice', email: 'alice@e.com' };
+const ADMIN = 'Enabling this will allow the user to create re-runs.';
+const VISIBILITY = 'Enabling this will allow the user to see and manage all courses in the selected orgs.';
 const renderModal = (onSaved = jest.fn()) => renderWithProviders(
   <OrgAccessModal isOpen user={user} onClose={jest.fn()} onSaved={onSaved} />,
 );
@@ -35,12 +37,12 @@ it('loads access, enables visibility on the first selection and saves', async ()
   const onSaved = jest.fn();
   renderModal(onSaved);
   expect(screen.getByText('Loading access')).toBeInTheDocument();
-  const admin = await screen.findByRole('switch', { name: 'Org admin' });
-  expect(screen.getByRole('switch', { name: 'Org visibility' })).toBeDisabled();
+  const admin = await screen.findByRole('switch', { name: ADMIN });
+  expect(screen.getByRole('switch', { name: VISIBILITY })).toBeDisabled();
   fireEvent.click(admin);
   expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
   pick('OrgA (Org A)');
-  expect(screen.getByRole('switch', { name: 'Org visibility' })).toBeChecked();
+  expect(screen.getByRole('switch', { name: VISIBILITY })).toBeChecked();
   fireEvent.click(screen.getByRole('button', { name: 'Save' }));
   await waitFor(() => expect(setOrgAccess).toHaveBeenCalledWith('alice', {
     org_admin: true, organizations: ['OrgA'], visibility: true, confirm_downgrade: false,
@@ -83,7 +85,7 @@ it('allows resolving mixed rows by enabling visibility', async () => {
     ...base, org_admin: true, organizations: ['OrgA', 'OrgB'], partial_visibility_orgs: ['OrgB'],
   });
   renderModal();
-  fireEvent.click(await screen.findByRole('switch', { name: 'Org visibility' }));
+  fireEvent.click(await screen.findByRole('switch', { name: VISIBILITY }));
   expect(screen.queryByRole('checkbox', { name: 'I understand' })).not.toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'Save' })).toBeEnabled();
 });
@@ -101,12 +103,12 @@ it('shows read-only reason', async () => {
   getOrgAccess.mockResolvedValue({ ...base, editable: false, not_editable_reason: 'inactive' });
   renderModal();
   expect(await screen.findByText('Activate this account before giving org access.')).toBeInTheDocument();
-  expect(screen.queryByRole('switch', { name: 'Org admin' })).not.toBeInTheDocument();
+  expect(screen.queryByRole('switch', { name: ADMIN })).not.toBeInTheDocument();
 });
 it('shows the server error and reloads after a server failure', async () => {
   setOrgAccess.mockRejectedValue({ response: { status: 503, data: { detail: 'Service account is not set up.' } } });
   renderModal();
-  fireEvent.click(await screen.findByRole('switch', { name: 'Org admin' }));
+  fireEvent.click(await screen.findByRole('switch', { name: ADMIN }));
   pick('OrgA (Org A)');
   fireEvent.click(screen.getByRole('button', { name: 'Save' }));
   expect(await screen.findByText('Service account is not set up.')).toBeInTheDocument();
@@ -115,7 +117,7 @@ it('shows the server error and reloads after a server failure', async () => {
 it('removes global creation with confirmation', async () => {
   getOrgAccess.mockResolvedValue({ ...base, org_admin: true, global_creator: true });
   renderModal();
-  fireEvent.click(await screen.findByRole('switch', { name: 'Org admin' }));
+  fireEvent.click(await screen.findByRole('switch', { name: ADMIN }));
   expect(screen.getByText(/Saving removes that/)).toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'Save' }));
   await waitFor(() => expect(setOrgAccess).toHaveBeenCalledWith('alice', {
@@ -125,7 +127,7 @@ it('removes global creation with confirmation', async () => {
 it('prevents duplicate submissions while saving', async () => {
   setOrgAccess.mockReturnValue(new Promise(() => {}));
   renderModal();
-  fireEvent.click(await screen.findByRole('switch', { name: 'Org admin' }));
+  fireEvent.click(await screen.findByRole('switch', { name: ADMIN }));
   pick('OrgA (Org A)');
   fireEvent.click(screen.getByRole('button', { name: 'Save' }));
   expect(screen.getByRole('button', { name: 'Saving…' })).toBeDisabled();
@@ -137,5 +139,13 @@ it('retries a failed load', async () => {
   renderModal();
   expect(await screen.findByText("Could not load this user's access. Please try again.")).toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
-  expect(await screen.findByRole('switch', { name: 'Org admin' })).toBeInTheDocument();
+  expect(await screen.findByRole('switch', { name: ADMIN })).toBeInTheDocument();
+});
+it('titles the modal Permissions, shows the email and no replace notice', async () => {
+  renderModal();
+  expect(await screen.findByText('Permissions for Alice')).toBeInTheDocument();
+  expect(screen.getByText('alice@e.com')).toBeInTheDocument();
+  expect(screen.queryByText('alice')).not.toBeInTheDocument();
+  expect(screen.queryByText(/Saving replaces/)).not.toBeInTheDocument();
+  expect(screen.getByText('Turn on Org admin and choose an organization first.')).toBeInTheDocument();
 });

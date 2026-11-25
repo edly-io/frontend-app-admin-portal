@@ -189,25 +189,26 @@ const OrgAccessModal = ({
   };
   const reason = REASONS[loaded?.not_editable_reason]
     || 'Activate this account before giving org access.';
-  let visibilityHelp = 'Open and manage every course in these organizations, including future ones.';
+  let visibilityHint = null;
   if (!orgAdmin || !orgs.length) {
-    visibilityHelp = 'Turn on Org admin and choose an organization first.';
+    visibilityHint = 'Turn on Org admin and choose an organization first.';
   }
   if (chip && orgAdmin) {
-    visibilityHelp = 'Choose specific organizations first.';
+    visibilityHint = 'Choose specific organizations first.';
   }
   return (
     <ModalDialog
-      title={`Access for ${user?.name || user?.username || ''}`}
+      title={`Permissions for ${user?.name || user?.username || ''}`}
       isOpen={isOpen}
       onClose={close}
       hasCloseButton
+      className="access-modal"
     >
       <ModalDialog.Header>
         <ModalDialog.Title>
-          Access for {user?.name || user?.username}
+          Permissions for {user?.name || user?.username}
         </ModalDialog.Title>
-        {user?.name && <p className="small text-muted mb-0">{user.username}</p>}
+        {user?.email && <p className="access-modal-email text-muted mb-0">{user.email}</p>}
       </ModalDialog.Header>
       {loading ? (
         <ModalDialog.Body>
@@ -236,19 +237,20 @@ const OrgAccessModal = ({
             {error && <Alert variant="danger">{error}</Alert>}
 
             <section>
-              <Form.Switch
-                checked={orgAdmin}
-                onChange={(e) => toggleAdmin(e.target.checked)}
-                className="mb-1"
-              >
-                <span className="font-weight-bold">Org admin</span>
-              </Form.Switch>
-              <p className="small text-muted mb-0">
-                Create course runs, re-runs and libraries.
-              </p>
+              <div className="access-switch-row">
+                <Form.Switch
+                  checked={orgAdmin}
+                  onChange={(e) => toggleAdmin(e.target.checked)}
+                  className="mb-1"
+                >
+                  <span className="access-switch-text">
+                    Enabling this will allow the user to create re-runs.
+                  </span>
+                </Form.Switch>
+              </div>
               {orgAdmin && (
                 <div className="mt-3">
-                  <p className="small font-weight-bold mb-1">Organizations</p>
+                  <p className="access-modal-label mb-1">Organizations</p>
                   {loaded.global_creator && (
                     <Form.Checkbox
                       checked={chip}
@@ -294,16 +296,22 @@ const OrgAccessModal = ({
 
             <hr className="my-4" />
 
-            <section className="mb-3">
-              <Form.Switch
-                checked={!!payload.visibility}
-                disabled={!orgAdmin || chip || !orgs.length}
-                onChange={(e) => setVisibility(e.target.checked)}
-                className="mb-1"
-              >
-                <span className="font-weight-bold">Org visibility</span>
-              </Form.Switch>
-              <p className="small text-muted mb-0">{visibilityHelp}</p>
+            <section>
+              <div className="access-switch-row">
+                <Form.Switch
+                  checked={!!payload.visibility}
+                  disabled={!orgAdmin || chip || !orgs.length}
+                  onChange={(e) => setVisibility(e.target.checked)}
+                  className="mb-1"
+                >
+                  <span className="access-switch-text">
+                    Enabling this will allow the user to see and manage all courses in the selected orgs.
+                  </span>
+                </Form.Switch>
+              </div>
+              {visibilityHint && (
+                <p className="small text-muted mb-0">{visibilityHint}</p>
+              )}
               {fieldErrors.visibility && (
                 <div className="text-danger small mt-1">
                   {[].concat(fieldErrors.visibility).join(' ')}
@@ -327,9 +335,6 @@ const OrgAccessModal = ({
                 )}
               </Alert>
             )}
-            <p className="small text-muted mb-0">
-              Saving replaces this user&apos;s current org access.
-            </p>
           </ModalDialog.Body>
           <ModalDialog.Footer>
             <ActionRow>
@@ -348,7 +353,9 @@ const OrgAccessModal = ({
 };
 OrgAccessModal.propTypes = {
   isOpen: PropTypes.bool.isRequired,
-  user: PropTypes.shape({ username: PropTypes.string, name: PropTypes.string }),
+  user: PropTypes.shape({
+    username: PropTypes.string, name: PropTypes.string, email: PropTypes.string,
+  }),
   onClose: PropTypes.func.isRequired,
   onSaved: PropTypes.func.isRequired,
 };
