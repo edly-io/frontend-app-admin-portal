@@ -219,3 +219,17 @@ it('shows organization columns and filters the portal service user', async () =>
   fireEvent.click(screen.getByRole('button', { name: 'Edit access' }));
   expect(await screen.findByText('Access for Alice A')).toBeInTheDocument();
 });
+
+it.each([
+  [{ status: 'disabled' }, 'This account is deactivated. Reactivate it before changing org access.'],
+  [{ status: 'pending' }, 'Activate this account before giving org access.'],
+  [{ lms_role: 'staff' }, 'Global staff already have access to every course.'],
+])('disables Edit access with a reason for %j', async (flags, reason) => {
+  getUsers.mockResolvedValue({ count: 1, results: [{ ...USERS.results[0], ...flags }] });
+  renderPage();
+  const button = await screen.findByRole('button', { name: 'Edit access' });
+  expect(button).toBeDisabled();
+  expect(screen.getByLabelText(`Edit access unavailable: ${reason}`)).toBeInTheDocument();
+  fireEvent.click(button);
+  expect(getOrgAccess).not.toHaveBeenCalled();
+});

@@ -146,12 +146,49 @@ HeaderWithHint.propTypes = {
   id: PropTypes.string.isRequired,
 };
 
+// Org access can only be edited for active, non-staff accounts. Otherwise the
+// button is disabled and a tooltip says why. A disabled button gets no hover
+// events, so the tooltip hangs on a wrapper.
+const editBlockedReason = (user) => {
+  if (user.lms_role === 'admin' || user.lms_role === 'staff') {
+    return 'Global staff already have access to every course.';
+  }
+  if (user.status === 'disabled') {
+    return 'This account is deactivated. Reactivate it before changing org access.';
+  }
+  if (user.status !== 'active') {
+    return 'Activate this account before giving org access.';
+  }
+  return null;
+};
+
+const EditAccessButton = ({ user, onEdit }) => {
+  const reason = editBlockedReason(user);
+  if (!reason) {
+    return <Button size="sm" variant="outline-primary" onClick={() => onEdit(user)}>Edit access</Button>;
+  }
+  return (
+    <OverlayTrigger placement="top" overlay={<Tooltip id={`edit-blocked-${user.username}`}>{reason}</Tooltip>}>
+      {/* eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex */}
+      <span className="d-inline-block" tabIndex={0} aria-label={`Edit access unavailable: ${reason}`}>
+        <Button size="sm" variant="outline-primary" disabled style={{ pointerEvents: 'none' }}>Edit access</Button>
+      </span>
+    </OverlayTrigger>
+  );
+};
+EditAccessButton.propTypes = {
+  user: PropTypes.shape({
+    username: PropTypes.string, status: PropTypes.string, lms_role: PropTypes.string,
+  }).isRequired,
+  onEdit: PropTypes.func.isRequired,
+};
+
 const ActionsCell = ({ row, column }) => {
   const user = row.original;
   if (user.status === 'disabled') {
     return (
       <ActionRow className="justify-content-center flex-nowrap">
-        <Button size="sm" variant="outline-primary" onClick={() => column.onEdit(user)}>Edit access</Button>
+        <EditAccessButton user={user} onEdit={column.onEdit} />
         <Button size="sm" variant="outline-primary" onClick={() => column.onAction(user, 'reactivate')}>
           Reactivate
         </Button>
@@ -160,7 +197,7 @@ const ActionsCell = ({ row, column }) => {
   }
   return (
     <ActionRow className="justify-content-center flex-nowrap">
-      <Button size="sm" variant="outline-primary" onClick={() => column.onEdit(user)}>Edit access</Button>
+      <EditAccessButton user={user} onEdit={column.onEdit} />
       {user.invite_expired && (
         <Button size="sm" variant="outline-primary" className="text-nowrap" onClick={() => column.onAction(user, 'resend')}>
           Resend Invitation
