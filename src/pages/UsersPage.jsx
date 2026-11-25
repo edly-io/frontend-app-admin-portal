@@ -1,5 +1,5 @@
 import React, {
-  useCallback, useEffect, useMemo, useState,
+  useCallback, useEffect, useMemo, useRef, useState,
 } from 'react';
 import PropTypes from 'prop-types';
 import { useNavigate } from 'react-router-dom';
@@ -113,7 +113,7 @@ const ActionsCell = ({ row, column }) => {
   const user = row.original;
   if (user.status === 'disabled') {
     return (
-      <ActionRow className="justify-content-center flex-nowrap">
+      <ActionRow className="justify-content-center user-row-actions">
         <Button size="sm" variant="outline-primary" onClick={() => column.onAction(user, 'reactivate')}>
           Reactivate
         </Button>
@@ -121,7 +121,7 @@ const ActionsCell = ({ row, column }) => {
     );
   }
   return (
-    <ActionRow className="justify-content-center flex-nowrap">
+    <ActionRow className="justify-content-center user-row-actions">
       {user.invite_expired && (
         <Button size="sm" variant="outline-primary" className="text-nowrap" onClick={() => column.onAction(user, 'resend')}>
           Resend Invitation
@@ -154,26 +154,47 @@ const UsersPage = ({ createOpen = false }) => {
   const [isConfirmOpen, openConfirm, closeConfirm] = useToggle(false);
   const [isCreateOpen, openCreate, closeCreate] = useToggle(createOpen);
   const [toast, setToast] = useState('');
+  // Bumped to force a reload when nothing else in the query changed.
+  const [refreshKey, setRefreshKey] = useState(0);
+  const latestRequestRef = useRef(0);
 
   const fetchUsers = useCallback(async () => {
+    latestRequestRef.current += 1;
+    const requestId = latestRequestRef.current;
     setLoading(true);
     try {
       const params = { page, page_size: PAGE_SIZE };
       if (search) { params.search = search; }
       if (status) { params.status = status; }
-      setData(await getUsers(params));
+      const result = await getUsers(params);
+      if (requestId !== latestRequestRef.current) { return; }
+      setData(result);
       setError(null);
     } catch (e) {
-      setError(e);
+      if (requestId === latestRequestRef.current) { setError(e); }
     } finally {
-      setLoading(false);
+      if (requestId === latestRequestRef.current) { setLoading(false); }
     }
-  }, [search, status, page]);
+    // refreshKey only re-creates the callback so a reload can be forced.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search, status, page, refreshKey]);
 
   useDebouncedEffect(fetchUsers, [fetchUsers]);
 
   // Reset to page 1 whenever the filters change.
-  useEffect(() => { setPage(1); }, [search, status]);
+  useEffect(() => {
+    setPage(1);
+  }, [search, status]);
+
+  // The directory lists newest first. Clear the filters and go to page 1 so the
+  // new user is visible, then force a reload in case nothing else changed.
+  const showNewUser = (user) => {
+    setToast(`${user.username} created.`);
+    setSearch('');
+    setStatus('');
+    setPage(1);
+    setRefreshKey((k) => k + 1);
+  };
 
   const askConfirm = useCallback((user, action) => {
     setPending({ user, action });
@@ -249,14 +270,15 @@ const UsersPage = ({ createOpen = false }) => {
         style={{ gap: '1rem' }}
       >
         <h1 className="mb-0">Users</h1>
-        <div className="d-flex flex-wrap align-items-center" style={{ gap: '.75rem' }}>
+        <div className="d-flex flex-wrap align-items-center flex-grow-1 flex-md-grow-0" style={{ gap: '.75rem' }}>
           <Form.Control
             type="text"
             aria-label="Search users"
             placeholder="Search name, username or email"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            style={{ minWidth: '18rem' }}
+            className="flex-grow-1"
+            style={{ minWidth: '12rem' }}
           />
           <Form.Control
             as="select"
@@ -272,7 +294,7 @@ const UsersPage = ({ createOpen = false }) => {
         </div>
       </div>
 
-      {loading ? (
+      {loading && !data.results.length ? (
         <div className="d-flex justify-content-center align-items-center" style={TABLE_LOADING_MIN_HEIGHT}>
           <Spinner animation="border" screenReaderText="Loading users" />
         </div>
@@ -302,7 +324,7 @@ const UsersPage = ({ createOpen = false }) => {
           // leave the admin on the directory, not on a URL with no dialog.
           if (createOpen) { navigate('/', { replace: true }); }
         }}
-        onCreated={(user) => { setToast(`${user.username} created.`); fetchUsers(); }}
+        onCreated={showNewUser}
       />
 
       <ModalDialog title="Confirm" isOpen={isConfirmOpen} onClose={closeConfirm} hasCloseButton={false}>

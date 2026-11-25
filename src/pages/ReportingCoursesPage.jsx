@@ -111,14 +111,15 @@ const ReportingCoursesPage = () => {
       )}
 
       <div className="d-flex flex-wrap align-items-end mb-3" style={{ gap: '1rem' }}>
-        <Form.Group className="mb-0">
+        <Form.Group className="mb-0 flex-grow-1 flex-md-grow-0">
           <Form.Label>Search</Form.Label>
           <Form.Control
             type="text"
             placeholder="course name, id or org"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            style={{ minWidth: '22rem' }}
+            style={{ minWidth: '12rem' }}
+            className="w-100"
           />
         </Form.Group>
       </div>

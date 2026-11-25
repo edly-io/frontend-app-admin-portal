@@ -32,6 +32,13 @@ describe('App gate (EDL-12)', () => {
     expect(screen.getByText('Staff & Roles')).toBeInTheDocument();
   });
 
+  it('offers a toggle that collapses the nav on small screens', async () => {
+    getMe.mockResolvedValue({ username: 'admin', is_edl_admin: true });
+    renderApp();
+    await screen.findByText('Enrollment');
+    expect(screen.getByRole('button', { name: /toggle navigation/i })).toBeInTheDocument();
+  });
+
   it('shows a neutral 404 (not the portal) on a 403 from me', async () => {
     getMe.mockRejectedValue({ response: { status: 403 } });
     renderApp();
