@@ -91,8 +91,8 @@
 .org-multiselect-option {
   display: block;
   width: 100%;
-  padding: .375rem .75rem;
-  font-size: .8125rem;
+  padding: .5rem 1rem;
+  font-size: 1rem;
   line-height: 1.4;
   text-align: start;
   background: transparent;
@@ -190,7 +190,7 @@
   }
 
   .access-switch-text {
-    font-size: .875rem;
+    font-size: 1rem;
     font-weight: 600;
     line-height: 1.4;
   }
@@ -200,40 +200,9 @@
 .access-switch-row + .small,
 .access-switch-row ~ .small { margin-top: .25rem; }
 
-// Permissions modal sizes: compact, so the two sentences are the loudest text.
+// Permissions modal: page-sized text. Only the two switch sentences are
+// semibold, and the small email and label lines are one step down.
 .access-modal {
-  .pgn__modal-title { font-size: 1rem; font-weight: 700; line-height: 1.4; }
-
-  .pgn__modal-header,
-  .pgn__modal-body,
-  .pgn__modal-footer { padding-inline: 1rem; }
-
-  .pgn__modal-header { padding-top: 1rem; padding-bottom: .5rem; }
-  .pgn__modal-footer { padding-top: .5rem; padding-bottom: 1rem; }
-
-  .access-modal-email { font-size: .75rem; line-height: 1.4; }
-  .access-modal-label { font-size: .75rem; font-weight: 600; }
-
-  .pgn__chip {
-    min-height: 0;
-    padding: .0625rem .5rem;
-    font-size: .75rem;
-    line-height: 1.5;
-  }
-
-  .form-control {
-    height: auto;
-    min-height: 0;
-    padding: .375rem .5rem;
-    font-size: .8125rem;
-  }
-
-  .btn {
-    min-height: 0;
-    padding: .375rem .875rem;
-    font-size: .8125rem;
-    line-height: 1.4;
-  }
-
-  .alert { font-size: .8125rem; }
+  .access-modal-email { font-size: .875rem; line-height: 1.4; }
+  .access-modal-label { font-size: .875rem; font-weight: 600; }
 }

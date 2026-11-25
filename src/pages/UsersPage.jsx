@@ -343,7 +343,7 @@ const UsersPage = ({ createOpen = false }) => {
   const CONFIRM_COPY = {
     reactivate: { label: 'Reactivate', variant: 'primary', body: 'This restores login and course access for the account.' },
     resend: { label: 'Resend', variant: 'primary', body: `This emails ${pending?.user.email} a new link to set a password. Older links stop working.` },
-    deactivate: { label: 'Deactivate', variant: 'danger', body: 'This blocks login and course access. Enrollments, submissions and grades are retained — this is not account deletion.' },
+    deactivate: { label: 'Deactivate', variant: 'danger', body: 'This blocks login and course access. Enrollments, submissions and grades are retained. This is not account deletion.' },
   };
   const confirm = CONFIRM_COPY[pending?.action || 'deactivate'];
   const confirmLabel = confirm.label;
